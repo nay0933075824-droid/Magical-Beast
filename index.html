@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="ระบบอัญเชิญสัตว์เวทมนตร์ระดับตำนาน - งานเปิดตัวสัตว์เวทมนตร์ (Cinematic Magical Creature Reveal System)">
+    <meta name="description" content="ระบบเปิดตัวสัตว์เวทมนตร์ระดับตำนาน (Cinematic Fantasy Creature Summoning Show)">
     <title>MAGICAL GATEWAY - ระบบเปิดตัวสัตว์เวทมนตร์ระดับตำนาน</title>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -18,9 +18,6 @@
     <!-- Dark Vignette Overlay -->
     <div class="vignette-overlay" id="vignetteOverlay"></div>
 
-    <!-- Glitch Overlay -->
-    <div class="glitch-overlay" id="glitchOverlay"></div>
-
     <!-- Ambient Magic Light Flares -->
     <div class="ambient-glow bg-glow-purple"></div>
     <div class="ambient-glow bg-glow-gold"></div>
@@ -30,7 +27,7 @@
         <!-- Header Title Section -->
         <header class="header" id="headerSection">
             <div class="event-badge">
-                <span class="star-icon">✦</span> ANCIENT CREATURE LAUNCH EVENT <span class="star-icon">✦</span>
+                <span class="star-icon">✦</span> CINEMATIC FANTASY SHOW <span class="star-icon">✦</span>
             </div>
             <h1 class="main-title">MAGICAL GATEWAY</h1>
             <p class="subtitle">กล่าวคำอัญเชิญเพื่อปลุกพลังเวทมนตร์ระดับตำนาน</p>
@@ -39,8 +36,7 @@
         <!-- Central Magic Circle Visualizer -->
         <div class="magic-circle-wrapper" id="magicCircleWrapper">
             <div class="magic-aura" id="magicAura"></div>
-            <div class="lightning-overlay" id="lightningOverlay"></div>
-            <div class="magic-crack-overlay" id="magicCrackOverlay"></div>
+            <div class="magical-energy-aura" id="magicalEnergyAura"></div>
             
             <!-- SVG Rotating Rune Circle -->
             <svg class="magic-circle-svg" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg">
@@ -53,7 +49,7 @@
                     <path id="runePath" d="M 250,250 m -215,0 a 215,215 0 1,1 430,0 a 215,215 0 1,1 -430,0" fill="none" />
                     <text class="rune-text">
                         <textPath href="#runePath" startOffset="0%">
-                            ᚠ ᚢ ᚦ ᚨ ᚱ ᚲ ✦ ANCIENT ENTITY DETECTED ✦ ᚷ ᚹ ᚺ ᚾ ᛁ ᛃ ✦ UNKNOWN LIFEFORM BREACHING ✦ ᛇ ᛈ ᛉ ᛋ ᛏ
+                            ᚠ ᚢ ᚦ ᚨ ᚱ ᚲ ✦ ANCIENT ENTITY AWAKENING ✦ ᚷ ᚹ ᚺ ᚾ ᛁ ᛃ ✦ MAGICAL CREATURE BREACHING ✦ ᛇ ᛈ ᛉ ᛋ ᛏ
                         </textPath>
                     </text>
                 </g>
@@ -93,16 +89,16 @@
 
         <!-- Warning HUD UI (Scene 5) -->
         <div class="warning-hud" id="warningHud">
-            <div class="warning-icon">⚠️</div>
+            <div class="warning-icon">🔮</div>
             <div class="warning-body">
-                <div class="warning-title">WARNING: MAGICAL GATE UNSTABLE</div>
-                <div class="warning-sub">UNKNOWN LIFEFORM DETECTED // ENERGY LIMIT EXCEEDED</div>
+                <div class="warning-title">MAGICAL GATE UNSTABLE</div>
+                <div class="warning-sub">ANCIENT LIFEFORM DETECTED // ENERGY LIMIT EXCEEDED</div>
             </div>
         </div>
 
         <!-- Fake Countdown HUD UI (Scene 6) -->
         <div class="countdown-hud" id="countdownHud">
-            <div class="countdown-label">GATE FAILURE IN</div>
+            <div class="countdown-label">GATE BREACH IN</div>
             <div class="countdown-digit" id="countdownDigit">3</div>
         </div>
 

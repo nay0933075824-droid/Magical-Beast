@@ -1,12 +1,11 @@
 /**
  * ==========================================================================
- * MAGICAL GATEWAY - BOSS REVEAL CINEMATIC SHOW ENGINE
+ * MAGICAL GATEWAY - CINEMATIC FANTASY ORCHESTRAL SHOW ENGINE
  * - Zero-spoiler mystery reveal
- * - 8-Scene Cinematic Timeline (~10-12s total duration)
- * - Energy Meter HUD (18% -> 99%) & Warning HUD Alert
- * - Fake Countdown (3... 2... 1) with instant pitch blackout silence
- * - Layered Dual Audio Engine (9 sound effects + Web Audio API synthesizer)
- * - Fullscreen video reveal controller
+ * - Pure Orchestral Soundscape (No electric zaps, sparks, or glitch noise)
+ * - Dynamic Voice Ducking (background music ducks when AI speaks)
+ * - Orchestral Timpani Countdown (3..2..1)
+ * - Pitch Blackout Silence (1.0s) & Epic Orchestra Reveal Impact
  * ==========================================================================
  */
 
@@ -59,9 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const warningHud = document.getElementById('warningHud');
     const countdownHud = document.getElementById('countdownHud');
     const countdownDigit = document.getElementById('countdownDigit');
-    const glitchOverlay = document.getElementById('glitchOverlay');
-    const magicCrackOverlay = document.getElementById('magicCrackOverlay');
-    const lightningOverlay = document.getElementById('lightningOverlay');
+    const magicalEnergyAura = document.getElementById('magicalEnergyAura');
     const blackoutOverlay = document.getElementById('blackoutOverlay');
     const flashOverlay = document.getElementById('flashOverlay');
     const dragonVideo = document.getElementById('dragonVideo');
@@ -84,14 +81,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================================================
-    // 3. LAYERED AUDIO ENGINE (9 Sound Effects + Web Audio API Synthesizer)
+    // 3. CINEMATIC FANTASY ORCHESTRAL AUDIO ENGINE
     // ==========================================================================
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     let audioCtx = null;
+    let masterGainNode = null;
+    let activeOrchestralNodes = [];
 
     function initAudioContext() {
         if (!audioCtx && AudioCtx) {
             audioCtx = new AudioCtx();
+            masterGainNode = audioCtx.createGain();
+            masterGainNode.gain.setValueAtTime(1.0, audioCtx.currentTime);
+            masterGainNode.connect(audioCtx.destination);
         }
         if (audioCtx && audioCtx.state === 'suspended') {
             audioCtx.resume();
@@ -99,164 +101,230 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     * เล่นเสียงเอฟเฟกต์ (พยายามเล่นไฟล์ MP3 หากไม่มีจะใช้ Web Audio API สังเคราะห์)
-     * @param {string} soundName 
+     * ดึงหรือลดเสียงเพลงพื้นหลังชั่วคราวขณะ AI กำลังพูด (Voice Ducking)
+     */
+    function setOrchestraDucking(isDucked) {
+        if (!masterGainNode || !audioCtx) return;
+        const now = audioCtx.currentTime;
+        const targetGain = isDucked ? 0.22 : 0.55;
+        masterGainNode.gain.cancelScheduledValues(now);
+        masterGainNode.gain.linearRampToValueAtTime(targetGain, now + 0.3);
+    }
+
+    /**
+     * หยุดและเคลียร์เสียงดนตรีทั้งหมดทันที (ใช้ตอน Blackout)
+     */
+    function stopAllOrchestralMusic(fadeDurationMs = 200) {
+        if (!audioCtx || !masterGainNode) return;
+        const now = audioCtx.currentTime;
+        masterGainNode.gain.cancelScheduledValues(now);
+        masterGainNode.gain.linearRampToValueAtTime(0.001, now + fadeDurationMs / 1000);
+        
+        setTimeout(() => {
+            activeOrchestralNodes.forEach(node => {
+                try { node.stop(); } catch(e){}
+            });
+            activeOrchestralNodes = [];
+            if (masterGainNode) {
+                masterGainNode.gain.setValueAtTime(1.0, audioCtx.currentTime);
+            }
+        }, fadeDurationMs + 50);
+    }
+
+    /**
+     * เล่นเสียงเอฟเฟกต์ หรือสังเคราะห์ด้วย Web Audio API (เฉพาะเสียงซิมโฟนีซาวด์สเคป)
+     * @param {string} soundName (mystery-intro, tension-build, orchestral-rise, cinematic-boom, timpani-hit, final-build, reveal-impact)
      * @param {number} volume 
      */
-    function playSound(soundName, volume = 0.3) {
+    function playOrchestralSound(soundName, volume = 0.35) {
         initAudioContext();
         if (!audioCtx) return;
 
+        // ลองพยายามเล่นไฟล์ MP3 ก่อน
         const audio = new Audio(`sounds/${soundName}.mp3`);
         audio.volume = volume;
         const playPromise = audio.play();
 
         if (playPromise !== undefined) {
             playPromise.catch(() => {
-                // Synthesize procedurally using Web Audio API if MP3 file is absent
-                synthesizeSound(soundName, volume);
+                // หากไม่มีไฟล์ MP3 ให้สังเคราะห์ผ่าน Web Audio API Pure Orchestral Synthesizer
+                synthesizeOrchestralSound(soundName, volume);
             });
         }
     }
 
     /**
-     * สังเคราะห์เสียงเอฟเฟกต์ทั้ง 9 ชนิดผ่าน Web Audio API
+     * สังเคราะห์เสียงซิมโฟนีซาวด์สเคป (Web Audio API Pure Orchestral Synthesizer)
+     * ห้ามมีเสียงไฟช็อต สายฟ้า เสียงซ่า หรือเสียงไมค์แตกเด็ดขาด!
      */
-    function synthesizeSound(type, volume = 0.3) {
-        if (!audioCtx) return;
+    function synthesizeOrchestralSound(type, volume = 0.35) {
+        if (!audioCtx || !masterGainNode) return;
         const now = audioCtx.currentTime;
 
         try {
-            if (type === 'low-rumble') {
-                // เสียงความถี่ต่ำสะเทือน (Low Sub-Bass Vibration)
+            if (type === 'mystery-intro') {
+                // Cello & Contrabass warm low pad (C2 65.41Hz, G2 98.00Hz, C3 130.81Hz)
+                const freqs = [65.41, 98.00, 130.81];
+                freqs.forEach(freq => {
+                    const osc = audioCtx.createOscillator();
+                    const filter = audioCtx.createBiquadFilter();
+                    const gain = audioCtx.createGain();
+
+                    osc.type = 'triangle'; // เสียงอุ่นคล้ายเครื่องสาย Cello
+                    osc.frequency.setValueAtTime(freq, now);
+
+                    filter.type = 'lowpass';
+                    filter.frequency.setValueAtTime(320, now);
+
+                    gain.gain.setValueAtTime(0.01, now);
+                    gain.gain.linearRampToValueAtTime(volume * 0.3, now + 1.2);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 4.0);
+
+                    osc.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(masterGainNode);
+
+                    osc.start(now);
+                    osc.stop(now + 4.0);
+                    activeOrchestralNodes.push(osc);
+                });
+            }
+            else if (type === 'tension-build') {
+                // Low Brass Swell (F2 87.31Hz, C3 130.81Hz) + Orchestra Resonance
+                [87.31, 130.81].forEach(freq => {
+                    const osc = audioCtx.createOscillator();
+                    const filter = audioCtx.createBiquadFilter();
+                    const gain = audioCtx.createGain();
+
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now);
+
+                    filter.type = 'lowpass';
+                    filter.frequency.setValueAtTime(450, now);
+
+                    gain.gain.setValueAtTime(0.01, now);
+                    gain.gain.linearRampToValueAtTime(volume * 0.4, now + 0.8);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 2.5);
+
+                    osc.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(masterGainNode);
+
+                    osc.start(now);
+                    osc.stop(now + 2.5);
+                    activeOrchestralNodes.push(osc);
+                });
+            }
+            else if (type === 'orchestral-rise') {
+                // Orchestra Rising String Swell (Lowpass Filter Sweep 200Hz -> 1000Hz)
+                const osc1 = audioCtx.createOscillator();
+                const osc2 = audioCtx.createOscillator();
+                const filter = audioCtx.createBiquadFilter();
+                const gain = audioCtx.createGain();
+
+                osc1.type = 'triangle';
+                osc2.type = 'sine';
+                osc1.frequency.setValueAtTime(110, now); // A2
+                osc2.frequency.setValueAtTime(220, now); // A3
+
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(200, now);
+                filter.frequency.linearRampToValueAtTime(1200, now + 2.5);
+
+                gain.gain.setValueAtTime(0.01, now);
+                gain.gain.linearRampToValueAtTime(volume * 0.5, now + 1.8);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 2.8);
+
+                osc1.connect(filter);
+                osc2.connect(filter);
+                filter.connect(gain);
+                gain.connect(masterGainNode);
+
+                osc1.start(now);
+                osc2.start(now);
+                osc1.stop(now + 2.8);
+                osc2.stop(now + 2.8);
+                activeOrchestralNodes.push(osc1, osc2);
+            }
+            else if (type === 'cinematic-boom') {
+                // Cinematic Low Bass Hit / Orchestra Boom (Sub Thump 60Hz -> 30Hz)
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 osc.type = 'sine';
-                osc.frequency.setValueAtTime(35, now);
-                osc.frequency.linearRampToValueAtTime(55, now + 2.0);
-                gain.gain.setValueAtTime(volume * 0.7, now);
-                gain.gain.exponentialRampToValueAtTime(0.001, now + 2.5);
+                osc.frequency.setValueAtTime(65, now);
+                osc.frequency.exponentialRampToValueAtTime(25, now + 0.5);
+
+                gain.gain.setValueAtTime(volume * 1.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+
                 osc.connect(gain);
-                gain.connect(audioCtx.destination);
+                gain.connect(masterGainNode);
+
                 osc.start(now);
-                osc.stop(now + 2.5);
+                osc.stop(now + 0.85);
             }
-            else if (type === 'heartbeat') {
-                // เสียงหัวใจเต้น (Sub Thump)
-                [0, 0.22].forEach(d => {
+            else if (type === 'timpani-hit') {
+                // Cinematic Timpani Drum Hit (110Hz -> 50Hz Timpani Decay)
+                const osc = audioCtx.createOscillator();
+                const filter = audioCtx.createBiquadFilter();
+                const gain = audioCtx.createGain();
+
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(110, now);
+                osc.frequency.exponentialRampToValueAtTime(45, now + 0.35);
+
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(500, now);
+
+                gain.gain.setValueAtTime(volume * 0.9, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(masterGainNode);
+
+                osc.start(now);
+                osc.stop(now + 0.5);
+            }
+            else if (type === 'final-build') {
+                // Epic Orchestra Final Crescendo (Heavy Brass + Choir Formant)
+                [130.81, 164.81, 196.00, 261.63].forEach(freq => {
                     const osc = audioCtx.createOscillator();
                     const gain = audioCtx.createGain();
                     osc.type = 'triangle';
-                    osc.frequency.setValueAtTime(75, now + d);
-                    osc.frequency.exponentialRampToValueAtTime(30, now + d + 0.12);
-                    gain.gain.setValueAtTime(volume * 0.9, now + d);
-                    gain.gain.exponentialRampToValueAtTime(0.001, now + d + 0.16);
+                    osc.frequency.setValueAtTime(freq, now);
+
+                    gain.gain.setValueAtTime(0.05, now);
+                    gain.gain.linearRampToValueAtTime(volume * 0.45, now + 1.2);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 2.0);
+
                     osc.connect(gain);
-                    gain.connect(audioCtx.destination);
-                    osc.start(now + d);
-                    osc.stop(now + d + 0.18);
+                    gain.connect(masterGainNode);
+
+                    osc.start(now);
+                    osc.stop(now + 2.0);
+                    activeOrchestralNodes.push(osc);
                 });
             }
-            else if (type === 'gate-hit') {
-                // เสียงบางอย่างชนกระแทกประตู (Heavy Gate Impact Thud)
+            else if (type === 'reveal-impact') {
+                // Full Orchestra Climax Impact + Bass Drop
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 osc.type = 'sine';
-                osc.frequency.setValueAtTime(140, now);
-                osc.frequency.exponentialRampToValueAtTime(25, now + 0.35);
-                gain.gain.setValueAtTime(volume * 1.2, now);
-                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start(now);
-                osc.stop(now + 0.45);
-            }
-            else if (type === 'creature-growl') {
-                // เสียงคำรามต่ำลึกลับของสิ่งมีชีวิต (Mysterious Low Growl Resonance)
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(60, now);
-                osc.frequency.linearRampToValueAtTime(90, now + 0.5);
-                osc.frequency.linearRampToValueAtTime(45, now + 1.2);
-                gain.gain.setValueAtTime(0.01, now);
-                gain.gain.linearRampToValueAtTime(volume * 0.6, now + 0.3);
-                gain.gain.exponentialRampToValueAtTime(0.001, now + 1.3);
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start(now);
-                osc.stop(now + 1.35);
-            }
-            else if (type === 'warning') {
-                // เสียงระบบเตือนภัย (Emergency Warning Beep)
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.type = 'square';
-                osc.frequency.setValueAtTime(880, now);
-                gain.gain.setValueAtTime(volume * 0.3, now);
-                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start(now);
-                osc.stop(now + 0.28);
-            }
-            else if (type === 'countdown-beep') {
-                // เสียงนับถอยหลัง Beep
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(1050, now);
-                gain.gain.setValueAtTime(volume * 0.4, now);
-                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start(now);
-                osc.stop(now + 0.18);
-            }
-            else if (type === 'magic-crack') {
-                // เสียงประตูแตกพลังงานรั่วไหล
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(400, now);
-                osc.frequency.exponentialRampToValueAtTime(100, now + 0.3);
-                gain.gain.setValueAtTime(volume * 0.5, now);
-                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start(now);
-                osc.stop(now + 0.38);
-            }
-            else if (type === 'bass-drop') {
-                // เสียง Bass Drop ตูมใหญ่ก่อนเปิดตัว
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(200, now);
-                osc.frequency.exponentialRampToValueAtTime(20, now + 0.8);
-                gain.gain.setValueAtTime(volume * 1.3, now);
+                osc.frequency.setValueAtTime(220, now);
+                osc.frequency.exponentialRampToValueAtTime(30, now + 0.7);
+
+                gain.gain.setValueAtTime(volume * 1.4, now);
                 gain.gain.exponentialRampToValueAtTime(0.001, now + 1.0);
+
                 osc.connect(gain);
-                gain.connect(audioCtx.destination);
+                gain.connect(masterGainNode);
+
                 osc.start(now);
-                osc.stop(now + 1.0);
-            }
-            else if (type === 'impact') {
-                // เสียง Impact ระเบิดประตู
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(300, now);
-                osc.frequency.exponentialRampToValueAtTime(40, now + 0.5);
-                gain.gain.setValueAtTime(volume * 1.5, now);
-                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start(now);
-                osc.stop(now + 0.65);
+                osc.stop(now + 1.05);
             }
         } catch (e) {
-            console.warn("Audio synthesis error:", e);
+            console.warn("Orchestral audio synth error:", e);
         }
     }
 
@@ -277,7 +345,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     * พูดประโยคเดี่ยวและรอจนกว่าจะพูดจบ
+     * พูดประโยคเดี่ยวและลดเสียงเพลงดนตรีลงชั่วคราวขณะ AI กำลังพูด (Ducking)
      * @param {string} text 
      * @param {number} rate 
      * @param {number} pitch 
@@ -290,6 +358,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             window.speechSynthesis.cancel();
+
+            // Duck music volume down for voice clarity
+            setOrchestraDucking(true);
 
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = "th-TH";
@@ -305,6 +376,7 @@ document.addEventListener('DOMContentLoaded', () => {
             utterance.onend = () => {
                 if (!hasResolved) {
                     hasResolved = true;
+                    setOrchestraDucking(false); // Restore music volume
                     resolve();
                 }
             };
@@ -313,6 +385,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.warn("TTS line error:", err);
                 if (!hasResolved) {
                     hasResolved = true;
+                    setOrchestraDucking(false);
                     resolve();
                 }
             };
@@ -323,6 +396,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => {
                 if (!hasResolved) {
                     hasResolved = true;
+                    setOrchestraDucking(false);
                     resolve();
                 }
             }, 4000);
@@ -356,7 +430,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         recognition.onresult = (event) => {
-            if (isSummoning) return; // ป้องกันการเรียกซ้ำ
+            if (isSummoning) return;
 
             let currentTranscript = "";
             for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -370,7 +444,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const normalizedText = normalizeSpeech(rawText);
 
-            // ตรวจจับคำสั่ง
             for (const item of summons) {
                 const targetCmd = normalizeSpeech(item.command);
                 if (normalizedText.includes(targetCmd)) {
@@ -421,40 +494,43 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================================================
-    // 6. CINEMATIC 8-SCENE TIMELINE SHOW ENGINE
+    // 6. CINEMATIC FANTASY ORCHESTRAL SHOW TIMELINE
     // ==========================================================================
 
     /**
-     * รันการแสดงฉากเปิดตัวระดับตำนาน 8 ฉาก (~10-12 วินาที)
+     * รันการแสดงฉากเปิดตัวซิมโฟนีแฟนตาซีระดับตำนาน (8 ฉาก)
      */
     async function runCinematicSummoningShow() {
         if (isSummoning) return;
         isSummoning = true;
 
-        // 1. หยุดรับเสียงไมค์ทันที
+        // 1. หยุดไมโครโฟนฟังเสียงทันที
         stopSpeechRecognition();
 
         // ----------------------------------------------------------------------
-        // SCENE 1: ทุกอย่างเงียบ (0s - 1s)
+        // SCENE 1: ช่วงเริ่มต้น — ทุกอย่างเงียบ (0s - 1s)
         // ----------------------------------------------------------------------
         document.body.className = '';
         statusDot.className = 'status-dot suspense';
-        statusBadgeText.textContent = "ความเงียบสงบ";
+        statusBadgeText.textContent = "บรรยากาศลึกลับ";
         statusTitle.textContent = "...";
-        statusEnglish.textContent = "SYSTEM SILENCE DETECTED";
+        statusEnglish.textContent = "MYSTERY INTRO";
 
-        playSound('low-rumble', 0.2);
-        playSound('heartbeat', 0.3);
+        // เริ่มเพลงเบาๆ ด้วย Cello, Contrabass & Soft Choir (ห้ามเพลงดังทันที)
+        playOrchestralSound('mystery-intro', 0.25);
 
         await delay(1000);
         if (!isSummoning) return;
 
         // ----------------------------------------------------------------------
-        // SCENE 2: ตรวจพบสิ่งผิดปกติ (1s - 3s)
+        // SCENE 2: ช่วงที่ 2 — ตรวจพบสิ่งผิดปกติ (1s - 3s)
         // ----------------------------------------------------------------------
         statusBadgeText.textContent = "ตรวจพบสิ่งผิดปกติ";
         statusTitle.textContent = "ตรวจพบบางสิ่งจากอีกฝั่ง";
         statusEnglish.textContent = "ANOMALY DETECTED BEYOND THE GATE";
+
+        // ดนตรีเริ่มเพิ่มเครื่องดนตรีทีละน้อย (Low Brass & Strings)
+        playOrchestralSound('tension-build', 0.35);
 
         await speakLine(suspenseDialogue[0], 0.72, 0.75); // "เดี๋ยวก่อน..."
         if (!isSummoning) return;
@@ -463,38 +539,40 @@ document.addEventListener('DOMContentLoaded', () => {
         await speakLine(suspenseDialogue[1], 0.72, 0.75); // "ระบบตรวจพบบางสิ่ง...จากอีกฝั่งของประตู"
         if (!isSummoning) return;
 
-        // เสียงกระแทกประตูครั้งแรก
-        playSound('gate-hit', 0.6);
+        // เสียงกระแทกประตูแบบ Cinematic Drum Thud (ไม่ใช่เสียงไฟช็อต)
+        playOrchestralSound('cinematic-boom', 0.5);
         document.body.classList.add('scene-shake-subtle');
         await delay(500);
 
         // ----------------------------------------------------------------------
-        // SCENE 3: สิ่งนั้นกำลังเข้ามา / ENERGY SURGE (3s - 6s)
+        // SCENE 3: ช่วงที่ 3 — พลังงานเพิ่มขึ้น / ORCHESTRAL RISE (3s - 6s)
         // ----------------------------------------------------------------------
         energyMeterContainer.classList.add('active');
         statusTitle.textContent = "ระดับพลังงานเพิ่มขึ้นอย่างรวดเร็ว";
-        statusEnglish.textContent = "ENERGY LEVEL SURGING RAPIDLY";
+        statusEnglish.textContent = "ENERGY LEVEL RISING";
 
-        // Speak Line 2: "สัญญาณพลังงาน...กำลังเพิ่มขึ้นอย่างรวดเร็ว"
-        const line2Promise = speakLine(suspenseDialogue[2], 0.78, 0.8);
+        // ดนตรีค่อยๆ เร็วและหนักขึ้นด้วย String Ostinato & Low Drums
+        playOrchestralSound('orchestral-rise', 0.45);
 
-        // Energy Meter Tick (18% -> 32% -> 51% -> 74% -> 92%)
+        const line2Promise = speakLine(suspenseDialogue[2], 0.78, 0.8); // "สัญญาณพลังงาน...กำลังเพิ่มขึ้นอย่างรวดเร็ว"
+
+        // หลอด Energy Meter วิ่ง 18% -> 32% -> 51% -> 74% -> 92%
         await animateEnergyMeter(18, 92, 2200);
         await line2Promise;
 
         if (!isSummoning) return;
 
         // ----------------------------------------------------------------------
-        // SCENE 4: มีบางอย่างตอบกลับ / GROWL (6s - 8s)
+        // SCENE 4: ช่วงที่ 4 — มีบางอย่างตอบกลับ (6s - 8s)
         // ----------------------------------------------------------------------
-        await delay(500); // ทุกอย่างหยุด 0.5s ก่อนคำราม
+        await delay(500); // ทุกอย่างหยุดสั้นๆ 0.5s เพื่อสร้างความลุ้น
         
-        // เล่นเสียงคำรามต่ำลึกลับ
-        playSound('creature-growl', 0.7);
-        playSound('gate-hit', 0.5);
+        // เล่นเสียง Cinematic Orchestra Boom & Timpani Hit
+        playOrchestralSound('cinematic-boom', 0.7);
+        playOrchestralSound('timpani-hit', 0.6);
         document.body.classList.add('scene-shake-medium');
         
-        await delay(1000);
+        await delay(900);
         if (!isSummoning) return;
 
         statusTitle.textContent = "มันตอบกลับมา...";
@@ -502,41 +580,40 @@ document.addEventListener('DOMContentLoaded', () => {
         
         await speakLine(suspenseDialogue[3], 0.75, 0.75); // "มัน...ตอบกลับมา"
         if (!isSummoning) return;
-        await delay(600);
+        
+        // ดนตรีหยุดสั้นๆ 0.4s แล้วกลับเข้ามาใหญ่กว่าเดิม
+        await delay(400);
 
         // ----------------------------------------------------------------------
-        // SCENE 5: ระบบเริ่มควบคุมไม่ได้ / WARNING EMERGENCY (8s - 10s)
+        // SCENE 5: ช่วงที่ 5 — ระบบเริ่มควบคุมไม่ได้ (8s - 10s)
         // ----------------------------------------------------------------------
         warningHud.classList.add('active');
-        glitchOverlay.classList.add('active');
-        magicCrackOverlay.style.opacity = '0.9';
-        lightningOverlay.style.opacity = '1';
+        magicalEnergyAura.style.opacity = '1';
 
         document.body.className = 'scene-shake-violent';
         statusDot.className = 'status-dot danger';
-        statusBadgeText.textContent = "เตือนภัยขั้นสูง";
+        statusBadgeText.textContent = "สภาวะฉุกเฉิน";
         statusTitle.textContent = "พลังงานเกินขีดจำกัด!";
-        statusEnglish.textContent = "CRITICAL: UNCONTROLLED GATE BREACH";
+        statusEnglish.textContent = "CRITICAL: ENERGY LIMIT EXCEEDED";
 
-        playSound('warning', 0.4);
-        playSound('magic-crack', 0.5);
+        // ดนตรี Orchestra สปีดขึ้นและโหมกระหน่ำ (Fast Strings, Heavy Brass, Choir)
+        playOrchestralSound('final-build', 0.55);
 
-        // Energy Spike 97% -> 99%
+        // Energy Spike 92% -> 99%
         await animateEnergyMeter(92, 99, 800);
 
-        // พูดรวดเร็วและตื่นเต้นขึ้น (rate: 0.9)
         await speakLine(suspenseDialogue[4], 0.88, 0.85); // "พลังงานเกินขีดจำกัด"
         if (!isSummoning) return;
 
         await speakLine(suspenseDialogue[5], 0.9, 0.88);  // "ระบบไม่สามารถควบคุมประตูได้"
         if (!isSummoning) return;
 
-        playSound('gate-hit', 0.9);
+        playOrchestralSound('cinematic-boom', 0.8);
         await speakLine(suspenseDialogue[6], 0.95, 1.05); // "มีบางอย่าง...กำลังพยายามออกมา!"
         if (!isSummoning) return;
 
         // ----------------------------------------------------------------------
-        // SCENE 6: FAKE COUNTDOWN (10s - 11s)
+        // SCENE 6: ช่วงที่ 6 — COUNTDOWN ORCHESTRAL TIMPANI (10s - 11s)
         // ----------------------------------------------------------------------
         warningHud.classList.remove('active');
         countdownHud.classList.add('active');
@@ -544,41 +621,40 @@ document.addEventListener('DOMContentLoaded', () => {
         for (let num = 3; num >= 1; num--) {
             if (!isSummoning) return;
             countdownDigit.textContent = num;
-            playSound('countdown-beep', 0.5);
-            if (num === 2) {
-                playSound('creature-growl', 0.5);
-            }
+            
+            // ใช้เสียงกลองใหญ่ Timpani Boom 1 ครั้งต่อตัวเลข (ห้ามใช้ Beep Electronic เด็ดขาด!)
+            playOrchestralSound('timpani-hit', 0.7);
+
             await delay(700);
         }
 
         // ----------------------------------------------------------------------
-        // SCENE 7: ความเงียบสนิทก่อนเปิดตัว (11s - 12s)
+        // SCENE 7: ช่วงที่ 7 — ความเงียบก่อนเฉลย (11s - 12s)
         // ----------------------------------------------------------------------
-        // ตัดเสียงและ UI ทั้งหมดออกกะทันหันก่อนเลข 1 จบ!
+        // หยุดดนตรีและข้อความทั้งหมดลงทันทีก่อนเลข 1 จบ
         window.speechSynthesis.cancel();
+        stopAllOrchestralMusic(100);
+
         countdownHud.classList.remove('active');
         energyMeterContainer.classList.remove('active');
-        glitchOverlay.classList.remove('active');
 
-        // Blackout Screen
+        // Blackout Screen ชัตดาวน์หน้าจอดำสนิท
         blackoutOverlay.classList.add('active');
         document.body.className = '';
 
-        // ความเงียบสนิท 1.0 วินาที
+        // ความเงียบสนิท 1.0 วินาที สร้างความลุ้นสูงสุด
         await delay(1000);
         if (!isSummoning) return;
 
         // ----------------------------------------------------------------------
-        // SCENE 8: เปิดตัวอย่างยิ่งใหญ่ (REVEAL CLIMAX)
+        // SCENE 8: ช่วงเปิดตัว — REVEAL CLIMAX (12s+)
         // ----------------------------------------------------------------------
         blackoutOverlay.classList.remove('active');
         
-        // เสียง Bass Drop + Impact ตูมใหญ่
-        playSound('bass-drop', 0.9);
-        playSound('impact', 0.9);
-        playSound('creature-growl', 0.8);
+        // เสียงเปิดตัวด้วย Orchestra Impact + Epic Drum Hit + Bass Drop
+        playOrchestralSound('reveal-impact', 0.9);
 
-        // Flash สีขาววาบ
+        // Flash สีขาววาบเปิดประตู
         flashOverlay.classList.add('active');
 
         setTimeout(() => {
@@ -610,10 +686,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     * เล่นวิดีโอสัตว์เวทมนตร์แบบเต็มหน้าจอ
+     * เปิดวิดีโอสัตว์เวทมนตร์แบบเต็มหน้าจอพร้อม Fade ดนตรีออก 300-500ms
      */
     function playCreatureVideo() {
         flashOverlay.classList.remove('active');
+
+        // Fade ดนตรีอัญเชิญออก 400ms ไม่ให้เพลงชนกับเสียงวิดีโอ
+        stopAllOrchestralMusic(400);
 
         const sourceElem = dragonVideo.querySelector('source');
         if (sourceElem && currentTargetVideo) {
@@ -628,7 +707,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const playPromise = dragonVideo.play();
         if (playPromise !== undefined) {
             playPromise.then(() => {
-                console.log("วิดีโอเปิดตัวมังกรเริ่มเล่นแล้ว");
+                console.log("วิดีโออัญเชิญมังกรเริ่มเล่นแล้ว");
             }).catch(err => {
                 console.error("การเล่นวิดีโอล้มเหลว:", err);
                 finishVideoSummoning();
@@ -637,7 +716,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     * จบการเล่นวิดีโอ และกลับสู่หน้ารอรับคำสั่ง
+     * เมื่อวิดีโอจบ คืนค่าระบบกลับสู่หน้ารอฟังคำสั่ง
      */
     function finishVideoSummoning() {
         dragonVideo.pause();
@@ -650,9 +729,7 @@ document.addEventListener('DOMContentLoaded', () => {
         energyMeterContainer.classList.remove('active');
         warningHud.classList.remove('active');
         countdownHud.classList.remove('active');
-        glitchOverlay.classList.remove('active');
-        magicCrackOverlay.style.opacity = '0';
-        lightningOverlay.style.opacity = '0';
+        magicalEnergyAura.style.opacity = '0';
 
         isSummoning = false;
 
@@ -676,6 +753,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isSummoning || dragonVideo.classList.contains('active')) {
                 console.log("กด ESC หยุดฉุกเฉิน");
                 window.speechSynthesis.cancel();
+                stopAllOrchestralMusic(100);
                 finishVideoSummoning();
             }
         }
