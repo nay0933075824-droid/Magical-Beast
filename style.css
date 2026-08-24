@@ -1,23 +1,19 @@
 /* ==========================================================================
-   MAGICAL CREATURE SUMMONING - SUSPENSE SHOW STYLESHEET
-   Theme: Mysterious Energy / Dark Magic / Suspense Reveal
+   MAGICAL GATEWAY - BOSS REVEAL CINEMATIC STYLESHEET
+   Theme: Ancient Energy Anomaly / Gateway Collapse / Boss Reveal
    ========================================================================== */
 
-/* Design Tokens */
 :root {
-    --bg-primary: #030206;
-    --bg-secondary: #0a0418;
-    --bg-card: rgba(15, 8, 32, 0.75);
+    --bg-primary: #020105;
+    --bg-card: rgba(12, 6, 26, 0.85);
     
     --gold-primary: #ffd700;
     --gold-light: #fff5b8;
-    --gold-dark: #b8860b;
     
     --violet-glow: #a855f7;
-    --violet-deep: #3b0764;
     --cyan-glow: #06b6d4;
     --magenta-glow: #ec4899;
-    --rose-glow: #f43f5e;
+    --red-alert: #ef4444;
     
     --text-primary: #f8fafc;
     --text-muted: #94a3b8;
@@ -26,9 +22,9 @@
     --font-heading: 'Cinzel', serif;
     --font-body: 'Kanit', 'Outfit', sans-serif;
     --font-accent: 'Outfit', sans-serif;
+    --font-mono: 'Share Tech Mono', monospace;
 }
 
-/* Reset & Global Base */
 * {
     margin: 0;
     padding: 0;
@@ -44,10 +40,10 @@ html, body {
     font-family: var(--font-body);
     user-select: none;
     -webkit-font-smoothing: antialiased;
-    transition: filter 0.6s ease, background-color 0.6s ease;
+    transition: filter 0.5s ease, background-color 0.5s ease;
 }
 
-/* Background Canvas & Ambient Glow */
+/* Background Canvas & Ambient Overlays */
 #particleCanvas {
     position: fixed;
     top: 0;
@@ -58,15 +54,53 @@ html, body {
     z-index: 1;
 }
 
+.vignette-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: radial-gradient(circle at center, transparent 35%, rgba(0, 0, 0, 0.95) 100%);
+    pointer-events: none;
+    z-index: 2;
+    transition: opacity 0.5s ease;
+}
+
+.glitch-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 50;
+    opacity: 0;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,0.15), rgba(0,0,0,0.15) 1px, transparent 1px, transparent 2px);
+    transition: opacity 0.2s ease;
+}
+
+.glitch-overlay.active {
+    opacity: 0.6;
+    animation: glitchAnim 0.15s steps(2) infinite;
+}
+
+@keyframes glitchAnim {
+    0% { transform: translate(0, 0) skew(0deg); }
+    20% { transform: translate(-3px, 2px) skew(2deg); filter: hue-rotate(90deg); }
+    40% { transform: translate(3px, -2px) skew(-2deg); }
+    60% { transform: translate(-2px, 1px) skew(1deg); filter: invert(0.2); }
+    80% { transform: translate(2px, -1px) skew(-1deg); }
+    100% { transform: translate(0, 0) skew(0deg); }
+}
+
 .ambient-glow {
     position: fixed;
     border-radius: 50%;
     filter: blur(140px);
     pointer-events: none;
     z-index: 0;
-    opacity: 0.35;
+    opacity: 0.3;
     animation: ambient-pulse 8s ease-in-out infinite alternate;
-    transition: opacity 0.5s ease, filter 0.5s ease;
 }
 
 .bg-glow-purple {
@@ -74,7 +108,7 @@ html, body {
     left: -10%;
     width: 65vw;
     height: 65vw;
-    background: radial-gradient(circle, var(--violet-deep), transparent 70%);
+    background: radial-gradient(circle, #3b0764, transparent 70%);
 }
 
 .bg-glow-gold {
@@ -86,7 +120,7 @@ html, body {
 }
 
 @keyframes ambient-pulse {
-    0% { opacity: 0.25; transform: scale(1); }
+    0% { opacity: 0.2; transform: scale(1); }
     100% { opacity: 0.45; transform: scale(1.15); }
 }
 
@@ -106,11 +140,11 @@ html, body {
 
 /* Header Section */
 .header {
-    margin-top: 1rem;
+    margin-top: 0.5rem;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.6rem;
+    gap: 0.5rem;
     transition: opacity 0.5s ease;
 }
 
@@ -145,7 +179,7 @@ html, body {
     font-size: clamp(1.8rem, 4.5vw, 3.5rem);
     font-weight: 900;
     letter-spacing: 3px;
-    background: linear-gradient(185deg, #ffffff 0%, var(--gold-light) 40%, var(--gold-primary) 70%, var(--gold-dark) 100%);
+    background: linear-gradient(185deg, #ffffff 0%, var(--gold-light) 40%, var(--gold-primary) 70%, #b8860b 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     text-shadow: 0 0 30px rgba(255, 215, 0, 0.3);
@@ -153,7 +187,7 @@ html, body {
 }
 
 .subtitle {
-    font-size: clamp(0.95rem, 2vw, 1.2rem);
+    font-size: clamp(0.9rem, 2vw, 1.15rem);
     color: var(--text-muted);
     font-weight: 300;
     letter-spacing: 1.5px;
@@ -162,9 +196,9 @@ html, body {
 /* Magic Circle Section */
 .magic-circle-wrapper {
     position: relative;
-    width: clamp(280px, 38vw, 410px);
-    height: clamp(280px, 38vw, 410px);
-    margin: 1.5rem 0;
+    width: clamp(260px, 36vw, 390px);
+    height: clamp(260px, 36vw, 390px);
+    margin: 1rem 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -189,8 +223,19 @@ html, body {
     border-radius: 50%;
     pointer-events: none;
     opacity: 0;
-    background: radial-gradient(circle, rgba(6, 182, 212, 0.4) 0%, transparent 60%);
+    background: radial-gradient(circle, rgba(6, 182, 212, 0.5) 0%, transparent 65%);
     transition: opacity 0.5s ease;
+}
+
+.magic-crack-overlay {
+    position: absolute;
+    width: 120%;
+    height: 120%;
+    border-radius: 50%;
+    pointer-events: none;
+    opacity: 0;
+    background: radial-gradient(circle, rgba(239, 68, 68, 0.6) 0%, rgba(236, 72, 153, 0.4) 40%, transparent 70%);
+    transition: opacity 0.3s ease;
 }
 
 @keyframes aura-pulse {
@@ -253,7 +298,6 @@ html, body {
     filter: drop-shadow(0 0 8px var(--cyan-glow));
 }
 
-/* Magic Circle Rotations */
 .ring-outer {
     transform-origin: 250px 250px;
     animation: rotate-cw 45s linear infinite;
@@ -286,13 +330,12 @@ html, body {
     100% { transform: scale(1.04); }
 }
 
-/* Center Core Node */
 .core-node {
     position: absolute;
     width: 60px;
     height: 60px;
     border-radius: 50%;
-    background: radial-gradient(circle, var(--gold-light) 0%, var(--gold-primary) 50%, var(--violet-deep) 100%);
+    background: radial-gradient(circle, var(--gold-light) 0%, var(--gold-primary) 50%, #3b0764 100%);
     box-shadow: 0 0 35px var(--gold-primary), 0 0 60px var(--violet-glow);
     display: flex;
     align-items: center;
@@ -300,6 +343,158 @@ html, body {
     font-size: 1.8rem;
     transition: all 0.4s ease;
     cursor: default;
+}
+
+/* Energy Meter HUD UI */
+.energy-meter-container {
+    width: min(92%, 520px);
+    margin: 0.5rem 0;
+    padding: 0.8rem 1.2rem;
+    background: rgba(8, 4, 18, 0.8);
+    border: 1px solid rgba(6, 182, 212, 0.3);
+    border-radius: 12px;
+    backdrop-filter: blur(12px);
+    display: none;
+    flex-direction: column;
+    gap: 0.4rem;
+    box-shadow: 0 0 20px rgba(6, 182, 212, 0.2);
+}
+
+.energy-meter-container.active {
+    display: flex;
+}
+
+.energy-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: var(--font-mono);
+}
+
+.energy-title {
+    font-size: 0.8rem;
+    letter-spacing: 2px;
+    color: var(--cyan-glow);
+}
+
+.energy-value {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--gold-primary);
+    text-shadow: 0 0 10px var(--gold-primary);
+}
+
+.energy-bar {
+    width: 100%;
+    height: 12px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.energy-fill {
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg, var(--cyan-glow) 0%, var(--violet-glow) 50%, var(--magenta-glow) 80%, var(--red-alert) 100%);
+    box-shadow: 0 0 15px var(--magenta-glow);
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Warning HUD UI */
+.warning-hud {
+    width: min(92%, 520px);
+    margin: 0.5rem 0;
+    padding: 0.9rem 1.2rem;
+    background: rgba(45, 10, 20, 0.85);
+    border: 2px solid var(--red-alert);
+    border-radius: 14px;
+    backdrop-filter: blur(16px);
+    display: none;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: 0 0 30px rgba(239, 68, 68, 0.5);
+    animation: warningBlink 0.6s ease-in-out infinite alternate;
+}
+
+.warning-hud.active {
+    display: flex;
+}
+
+@keyframes warningBlink {
+    0% { border-color: rgba(239, 68, 68, 0.4); box-shadow: 0 0 15px rgba(239, 68, 68, 0.3); }
+    100% { border-color: rgba(239, 68, 68, 1); box-shadow: 0 0 40px rgba(239, 68, 68, 0.8); }
+}
+
+.warning-icon {
+    font-size: 2rem;
+    animation: iconPulse 0.4s ease-in-out infinite alternate;
+}
+
+@keyframes iconPulse {
+    0% { transform: scale(1); }
+    100% { transform: scale(1.2); }
+}
+
+.warning-body {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+    font-family: var(--font-mono);
+}
+
+.warning-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #ff6b6b;
+    letter-spacing: 1.5px;
+}
+
+.warning-sub {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+}
+
+/* Fake Countdown HUD UI */
+.countdown-hud {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 100;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.countdown-hud.active {
+    display: flex;
+}
+
+.countdown-label {
+    font-family: var(--font-mono);
+    font-size: 1.1rem;
+    letter-spacing: 4px;
+    color: var(--red-alert);
+    text-shadow: 0 0 15px var(--red-alert);
+}
+
+.countdown-digit {
+    font-family: var(--font-mono);
+    font-size: clamp(5rem, 15vw, 10rem);
+    font-weight: 900;
+    color: #ffffff;
+    text-shadow: 0 0 30px var(--red-alert), 0 0 60px var(--red-alert);
+    animation: countdownDigitPulse 0.8s ease-out infinite;
+}
+
+@keyframes countdownDigitPulse {
+    0% { transform: scale(1.3); opacity: 0.5; }
+    50% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(0.9); opacity: 0.8; }
 }
 
 /* Suspense Status Panel Section */
@@ -349,6 +544,12 @@ html, body {
     animation: dot-pulse 0.4s infinite;
 }
 
+.status-dot.danger {
+    background-color: var(--red-alert);
+    box-shadow: 0 0 20px var(--red-alert);
+    animation: dot-pulse 0.25s infinite;
+}
+
 @keyframes dot-pulse {
     0% { transform: scale(0.9); opacity: 0.7; }
     50% { transform: scale(1.3); opacity: 1; }
@@ -375,7 +576,7 @@ html, body {
 }
 
 .status-english {
-    font-family: var(--font-heading);
+    font-family: var(--font-mono);
     font-size: 0.75rem;
     letter-spacing: 2.5px;
     color: var(--cyan-glow);
@@ -489,125 +690,67 @@ kbd {
 }
 
 /* ==========================================================================
-   SUSPENSE STAGES & SCREEN SHAKE ANIMATIONS
+   SCENE SHAKE KEYFRAMES
    ========================================================================== */
 
-/* Stage 1: Darken background, small energy sparkles */
-body.stage-1 {
-    filter: brightness(0.75);
-    background-color: #020104;
+body.scene-shake-subtle .main-container {
+    animation: subtleShake 1.2s ease-in-out infinite;
 }
 
-body.stage-1 .magic-circle-wrapper {
-    transform: scale(1.05);
+body.scene-shake-medium .main-container {
+    animation: mediumShake 0.6s ease-in-out infinite;
 }
 
-body.stage-1 .ring-outer {
-    animation-duration: 20s;
+body.scene-shake-violent .main-container {
+    animation: violentShake 0.12s linear infinite;
 }
 
-/* Stage 2: Faster rotation, heartbeat, screen shake stage 1 */
-body.stage-2 {
-    filter: brightness(0.85);
-}
-
-body.stage-2 .main-container {
-    animation: screenShakeStage1 1.2s ease-in-out infinite;
-}
-
-body.stage-2 .magic-circle-wrapper {
-    transform: scale(1.12);
-}
-
-body.stage-2 .ring-outer {
-    animation-duration: 10s;
-}
-
-body.stage-2 .ring-middle {
-    animation-duration: 6s;
-}
-
-body.stage-2 .magic-aura {
-    background: radial-gradient(circle, rgba(236, 72, 153, 0.4) 0%, rgba(255, 215, 0, 0.3) 50%, transparent 70%);
-    filter: blur(30px);
-}
-
-body.stage-2 .status-panel {
-    border-color: var(--magenta-glow);
-    box-shadow: 0 0 30px rgba(236, 72, 153, 0.4);
-}
-
-/* Stage 3: Intense rotation, lightning aura, screen shake stage 2 */
-body.stage-3 {
-    filter: brightness(1.1);
-}
-
-body.stage-3 .main-container {
-    animation: screenShakeStage2 0.6s ease-in-out infinite;
-}
-
-body.stage-3 .magic-circle-wrapper {
-    transform: scale(1.25);
-}
-
-body.stage-3 .ring-outer {
-    animation-duration: 4s;
-}
-
-body.stage-3 .ring-middle {
-    animation-duration: 2.5s;
-}
-
-body.stage-3 .lightning-overlay {
-    opacity: 0.85;
-    animation: lightning-flash 0.3s ease-in-out infinite alternate;
-}
-
-body.stage-3 .magic-aura {
-    background: radial-gradient(circle, rgba(255, 215, 0, 0.7) 0%, rgba(168, 85, 247, 0.6) 50%, transparent 70%);
-    filter: blur(45px);
-}
-
-body.stage-3 .status-panel {
-    border-color: var(--gold-primary);
-    box-shadow: 0 0 50px rgba(255, 215, 0, 0.6);
-}
-
-/* Stage 4: Climax Impact Zoom & Flash */
-body.stage-4 .main-container {
-    animation: impactZoom 0.4s ease-in forwards;
-}
-
-/* Screen Shake Keyframes */
-@keyframes screenShakeStage1 {
+@keyframes subtleShake {
     0% { transform: translate(0, 0); }
-    25% { transform: translate(-3px, 2px); }
-    50% { transform: translate(3px, -2px); }
-    75% { transform: translate(-2px, -1px); }
+    25% { transform: translate(-2px, 1px); }
+    50% { transform: translate(2px, -1px); }
+    75% { transform: translate(-1px, 2px); }
     100% { transform: translate(0, 0); }
 }
 
-@keyframes screenShakeStage2 {
+@keyframes mediumShake {
     0% { transform: translate(0, 0) scale(1); }
-    20% { transform: translate(-5px, 4px) scale(1.006); }
-    40% { transform: translate(5px, -4px) scale(0.994); }
-    60% { transform: translate(-4px, -3px) scale(1.008); }
-    80% { transform: translate(4px, 3px) scale(0.996); }
+    20% { transform: translate(-4px, 3px) scale(1.004); }
+    40% { transform: translate(4px, -3px) scale(0.996); }
+    60% { transform: translate(-3px, -2px) scale(1.006); }
+    80% { transform: translate(3px, 2px) scale(0.998); }
     100% { transform: translate(0, 0) scale(1); }
 }
 
-@keyframes impactZoom {
-    0% { transform: scale(1); filter: brightness(1); }
-    50% { transform: scale(1.2) rotate(3deg); filter: brightness(2); }
-    100% { transform: scale(1.5) rotate(-5deg); filter: brightness(4); }
+@keyframes violentShake {
+    0% { transform: translate(0, 0) rotate(0deg); }
+    20% { transform: translate(-7px, 6px) rotate(-1deg); }
+    40% { transform: translate(7px, -5px) rotate(1deg); }
+    60% { transform: translate(-6px, -4px) rotate(-1.5deg); }
+    80% { transform: translate(6px, 5px) rotate(1.2deg); }
+    100% { transform: translate(0, 0) rotate(0deg); }
 }
 
-@keyframes lightning-flash {
-    0% { opacity: 0.3; transform: scale(1); }
-    100% { opacity: 0.9; transform: scale(1.08); }
+/* Scene 7 Complete Silence Pitch Blackout Overlay */
+.blackout-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: #000000;
+    z-index: 99998;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.1s ease-out;
 }
 
-/* White Flash Overlay */
+.blackout-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Scene 8 White Flash Overlay */
 .flash-overlay {
     position: fixed;
     top: 0;
@@ -615,7 +758,7 @@ body.stage-4 .main-container {
     width: 100vw;
     height: 100vh;
     background-color: #ffffff;
-    z-index: 9999;
+    z-index: 99999;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.2s ease-out;
@@ -634,7 +777,7 @@ body.stage-4 .main-container {
     width: 100vw;
     height: 100vh;
     object-fit: cover;
-    z-index: 99999;
+    z-index: 100000;
     display: none;
     background: #000;
     cursor: none;
@@ -657,6 +800,9 @@ body.video-active * {
 body.video-active .main-container,
 body.video-active #particleCanvas,
 body.video-active .ambient-glow,
+body.video-active .vignette-overlay,
+body.video-active .glitch-overlay,
+body.video-active .blackout-overlay,
 body.video-active .flash-overlay {
     opacity: 0 !important;
     pointer-events: none !important;
