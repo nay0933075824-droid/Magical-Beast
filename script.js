@@ -334,7 +334,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function loadTTSVoices() {
         if ('speechSynthesis' in window) {
             const voices = window.speechSynthesis.getVoices();
-            ttsVoice = voices.find(v => v.lang.includes('th') || v.lang.includes('TH')) || null;
+            ttsVoice = voices.find(v => v.lang && (v.lang.includes('th') || v.lang.includes('TH'))) || 
+                       voices.find(v => v.name && (v.name.includes('Thai') || v.name.includes('Kanya') || v.name.includes('Pattara'))) || 
+                       null;
         }
     }
 
@@ -356,7 +358,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            window.speechSynthesis.cancel();
+            // แสดงข้อความบน UI ทันทีเพื่อให้คนดูอ่านตามได้
+            if (statusTitle) statusTitle.textContent = text;
+            if (transcriptText) transcriptText.textContent = `"${text}"`;
+
+            loadTTSVoices(); // โหลดเสียงล่าสุดเผื่อยังไม่ได้จัดเก็บ
+
+            try {
+                window.speechSynthesis.cancel();
+                if (window.speechSynthesis.paused) {
+                    window.speechSynthesis.resume();
+                }
+            } catch(e) {}
 
             // Duck music volume down for voice clarity
             setOrchestraDucking(true);
@@ -372,34 +385,106 @@ document.addEventListener('DOMContentLoaded', () => {
 
             let hasResolved = false;
 
-            utterance.onend = () => {
+            function finishLine() {
                 if (!hasResolved) {
                     hasResolved = true;
                     setOrchestraDucking(false); // Restore music volume
                     resolve();
                 }
+            }
+
+            utterance.onstart = () => {
+                console.log("AI เริ่มพูด:", text);
+                try {
+                    if (window.speechSynthesis.paused) {
+                        window.speechSynthesis.resume();
+                    }
+                } catch(e) {}
+            };
+
+            utterance.onend = () => {
+                console.log("AI พูดจบ:", text);
+                finishLine();
             };
 
             utterance.onerror = (err) => {
                 console.warn("TTS line error:", err);
-                if (!hasResolved) {
-                    hasResolved = true;
-                    setOrchestraDucking(false);
-                    resolve();
-                }
+                finishLine();
             };
 
-            window.speechSynthesis.speak(utterance);
+            try {
+                window.speechSynthesis.speak(utterance);
+                window.speechSynthesis.resume();
+            } catch (e) {
+                console.warn("Speech Synthesis Exception:", e);
+                finishLine();
+            }
 
-            // Safety timeout
-            setTimeout(() => {
-                if (!hasResolved) {
-                    hasResolved = true;
-                    setOrchestraDucking(false);
-                    resolve();
-                }
-            }, 4000);
+            // Dynamic Safety timeout based on text length and rate
+            const approxDurationMs = Math.max(3000, (text.length * 280) / rate);
+            setTimeout(finishLine, approxDurationMs);
         });
+    }
+
+    /**
+     * พูด 8 ประโยคสร้างความลุ้นก่อนเปิดวิดีโอ — ห้ามพูดชื่อสัตว์ออกมา!
+     * อารมณ์: ลึกลับ → สงสัย/ตื่นเต้น → เร่งเร้าเหมือนสิ่งนั้นกำลังจะปรากฏทันที
+     */
+    async function speakSuspenseLines() {
+        const aiLines = [
+            "มีบางอย่าง...กำลังเกิดขึ้น",              // 0 — ลึกลับ (rate 0.78, pitch 0.88)
+            "เดี๋ยวก่อน...ฉันตรวจพบบางสิ่ง",           // 1 — ลึกลับ
+            "พลังงานของมัน...กำลังเพิ่มขึ้น",         // 2 — เริ่มตื่นเต้น (rate 0.85, pitch 0.92)
+            "มันกำลังเข้ามาใกล้ขึ้นเรื่อย ๆ",         // 3 — เริ่มตื่นเต้น
+            "ฉันยังระบุไม่ได้...ว่ามันคืออะไร",        // 4 — เริ่มตื่นเต้น
+            "เดี๋ยวนะ...มันกำลังเคลื่อนไหว",            // 5 — เร่งเร้า (rate 0.95, pitch 1.0)
+            "มันกำลังจะออกมาแล้ว...",                     // 6 — เร่งเร้า
+            "ทุกคน...เตรียมตัวให้พร้อม!"                // 7 — สุดตื่นเต้น
+        ];
+
+        // กำหนด rate, pitch ตามช่วงอารมณ์
+        function getVoiceParams(i) {
+            if (i <= 1) return { rate: 0.78, pitch: 0.88 };   // ลึกลับ
+            if (i <= 5) return { rate: 0.85, pitch: 0.92 };   // สงสัย/ตื่นเต้น
+            return       { rate: 0.95, pitch: 1.0  };         // เร่งเร้า
+        }
+
+        // กำหนด delay ระหว่างประโยค (ถี่ขึ้นทีละน้อยเพื่อสร้างความรู้สึกว่าเหตุการณ์เร่งขึ้น)
+        function getLineDelay(i) {
+            if (i < 2)  return 500;  // ช่วงแรก — ช้า ลึกลับ
+            if (i < 5)  return 350;  // ช่วงกลาง — เริ่มตื่นเต้น
+            return      200;         // ช่วงท้าย — พูดถี่ขึ้น
+        }
+
+        for (let i = 0; i < aiLines.length; i++) {
+            if (!isSummoning) return;
+
+            // หลังประโยคที่ 0 จบ: วงเวทปรากฏ + ดนตรีเพิ่ม
+            if (i === 1) {
+                playOrchestralSound('tension-build', 0.42);
+                magicCircleWrapper.classList.add('summoning-active');
+            }
+            // ประโยคที่ 2: ดนตรีเพิ่ม String + Cello + Choir
+            if (i === 2) {
+                playOrchestralSound('orchestral-rise', 0.45);
+            }
+            // ประโยคที่ 5: ดนตรีไต่ระดับ Heavy Brass
+            if (i === 5) {
+                playOrchestralSound('final-build', 0.5);
+            }
+            // ประโยคที่ 6: Cinematic Boom ก่อนประโยคสุดท้าย
+            if (i === 6) {
+                playOrchestralSound('cinematic-boom', 0.65);
+            }
+
+            const { rate, pitch } = getVoiceParams(i);
+            await speakLine(aiLines[i], rate, pitch); // รอ onend จริง — ห้ามใช้ setTimeout เดาเวลา
+
+            // เว้นจังหวะระหว่างประโยค (ถี่ขึ้นเรื่อยๆ ช่วงท้าย)
+            if (i < aiLines.length - 1) {
+                await delay(getLineDelay(i));
+            }
+        }
     }
 
     // ==========================================================================
@@ -527,47 +612,12 @@ document.addEventListener('DOMContentLoaded', () => {
         await delay(800);
         if (!isSummoning) return;
 
-        // ── SCENE 2: AI พูด "มีบางอย่าง...กำลังเกิดขึ้น" (ช้า ลึกลับ rate=0.75) ──
+        // ── SCENE 2-7: AI พูด 8 ประโยคสร้างความลุ้น (ลึกลับ → ตื่นเต้น → เร่งเร้า) ──
         statusBadgeText.textContent = "ตรวจพบสัญญาณผิดปกติ";
         statusTitle.textContent = "มีสิ่งผิดปกติบางอย่าง...";
         statusEnglish.textContent = "ANOMALY SIGNAL DETECTED";
 
-        // ใช้ onend — ไม่ใช้ setTimeout เดาเวลา
-        await speakLine(suspenseDialogue[0], 0.75, 0.85); // "มีบางอย่าง...กำลังเกิดขึ้น"
-        if (!isSummoning) return;
-
-        // หลัง AI พูดจบ: ดนตรีดังขึ้นเล็กน้อย + วงเวทค่อยๆ ปรากฏ
-        playOrchestralSound('tension-build', 0.42);
-        magicCircleWrapper.classList.add('summoning-active');
-
-        // ── SCENE 3: AI พูด "พลังงานบางอย่าง...กำลังเข้ามาใกล้" ──
-        statusBadgeText.textContent = "ตรวจพบพลังงาน";
-        statusTitle.textContent = "พลังงานบางอย่างกำลังเข้ามา...";
-        statusEnglish.textContent = "ENERGY SIGNATURE APPROACHING";
-
-        // ดนตรีเพิ่ม String, Cello, Choir, Cinematic Drum
-        playOrchestralSound('orchestral-rise', 0.45);
-
-        await speakLine(suspenseDialogue[1], 0.75, 0.85); // "พลังงานบางอย่าง...กำลังเข้ามาใกล้"
-        if (!isSummoning) return;
-
-        // ── SCENE 4: AI พูด "เดี๋ยวก่อน..." แล้วเว้นเงียบ 0.5s ──
-        await speakLine(suspenseDialogue[2], 0.75, 0.85); // "เดี๋ยวก่อน..."
-        if (!isSummoning) return;
-
-        // เว้นเงียบสั้นๆ 0.5 วินาที (หลัง onend)
-        await delay(500);
-        if (!isSummoning) return;
-
-        // ── SCENE 5: AI พูด "มันกำลังจะปรากฏตัว" + ดนตรีไต่ระดับ ──
-        statusBadgeText.textContent = "พลังงานพุ่งสูง";
-        statusTitle.textContent = "สิ่งมีชีวิตบางอย่างกำลังมา...";
-        statusEnglish.textContent = "LIFEFORM MATERIALIZING";
-
-        // ดนตรีไต่ระดับขึ้นเรื่อยๆ (Heavy Brass + Choir)
-        playOrchestralSound('final-build', 0.5);
-
-        await speakLine(suspenseDialogue[3], 0.75, 0.85); // "มันกำลังจะปรากฏตัว"
+        await speakSuspenseLines();
         if (!isSummoning) return;
 
         // ── SCENE 6: Energy Meter วิ่ง 35 → 58 → 76 → 91 → 99 ──
@@ -580,16 +630,10 @@ document.addEventListener('DOMContentLoaded', () => {
         statusEnglish.textContent = "ENERGY SURGING — GATE UNSTABLE";
         document.body.classList.add('scene-shake-subtle');
 
-        // วิ่ง Energy แบบขั้น: 35% → 58% → 76% → 91% → 99%
         await animateEnergySteps([35, 58, 76, 91, 99], 420);
         if (!isSummoning) return;
 
-        // ── SCENE 7: AI พูด "เตรียมตัวให้พร้อม...มันกำลังมา!" (เร็วขึ้น rate=0.9) ──
         document.body.classList.add('scene-shake-medium');
-        playOrchestralSound('cinematic-boom', 0.7);
-
-        await speakLine(suspenseDialogue[4], 0.9, 0.95); // "เตรียมตัวให้พร้อม...มันกำลังมา!"
-        if (!isSummoning) return;
 
         // ── SCENE 8: Countdown 3, 2, 1 ด้วยกลอง Timpani (ห้าม Beep Electronic) ──
         warningHud.classList.remove('active');
