@@ -24,13 +24,11 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
 
     const suspenseDialogue = [
-        "เดี๋ยวก่อน...",                                     // index 0
-        "ระบบตรวจพบบางสิ่ง...จากอีกฝั่งของประตู",         // index 1
-        "สัญญาณพลังงาน...กำลังเพิ่มขึ้นอย่างรวดเร็ว",      // index 2
-        "มัน...ตอบกลับมา",                                 // index 3
-        "พลังงานเกินขีดจำกัด",                             // index 4
-        "ระบบไม่สามารถควบคุมประตูได้",                     // index 5
-        "มีบางอย่าง...กำลังพยายามออกมา!"                    // index 6
+        "มีบางอย่าง...กำลังเกิดขึ้น",           // index 0 — ช้า ลึกลับ (rate 0.75)
+        "พลังงานบางอย่าง...กำลังเข้ามาใกล้",   // index 1 — ช้า ลึกลับ (rate 0.75)
+        "เดี๋ยวก่อน...",                       // index 2 — หยุดสั้นๆ 0.5s หลังจบ
+        "มันกำลังจะปรากฏตัว",                  // index 3 — ก่อน Energy Meter
+        "เตรียมตัวให้พร้อม...มันกำลังมา!"      // index 4 — เร็วขึ้น (rate 0.9)
     ];
 
     // --- State Variables ---
@@ -106,7 +104,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function setOrchestraDucking(isDucked) {
         if (!masterGainNode || !audioCtx) return;
         const now = audioCtx.currentTime;
-        const targetGain = isDucked ? 0.22 : 0.55;
+        // ลดเสียงดนตรีลง 0.2 ขณะ AI พูด แล้วเพิ่มกลับเป็น 0.5 หลังพูดจบ
+        const targetGain = isDucked ? 0.2 : 0.5;
         masterGainNode.gain.cancelScheduledValues(now);
         masterGainNode.gain.linearRampToValueAtTime(targetGain, now + 0.3);
     }
@@ -498,7 +497,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================================================
 
     /**
-     * รันการแสดงฉากเปิดตัวซิมโฟนีแฟนตาซีระดับตำนาน (8 ฉาก)
+     * รันการแสดงฉากเปิดตัวซิมโฟนีแฟนตาซีระดับตำนาน
+     * ลำดับ: หน้าจอมืด → ดนตรี → 5 ประโยค AI (onend) → Energy Steps → Countdown → Blackout → Reveal
+     * ห้าม: เสียงไฟช็อต / สายฟ้า / Beep / พูดคำว่า "มังกร" ก่อนวิดีโอ
      */
     async function runCinematicSummoningShow() {
         if (isSummoning) return;
@@ -507,154 +508,124 @@ document.addEventListener('DOMContentLoaded', () => {
         // 1. หยุดไมโครโฟนฟังเสียงทันที
         stopSpeechRecognition();
 
-        // ----------------------------------------------------------------------
-        // SCENE 1: ช่วงเริ่มต้น — ทุกอย่างเงียบ (0s - 1s)
-        // ----------------------------------------------------------------------
+        // ── SCENE 1: หน้าจอค่อยๆ มืดลง + เริ่มดนตรี Cinematic Fantasy เบาๆ ──
         document.body.className = '';
         statusDot.className = 'status-dot suspense';
-        statusBadgeText.textContent = "บรรยากาศลึกลับ";
+        statusBadgeText.textContent = "กำลังตรวจจับ...";
         statusTitle.textContent = "...";
-        statusEnglish.textContent = "MYSTERY INTRO";
+        statusEnglish.textContent = "DETECTING ANOMALY";
 
-        // เริ่มเพลงเบาๆ ด้วย Cello, Contrabass & Soft Choir (ห้ามเพลงดังทันที)
-        playOrchestralSound('mystery-intro', 0.25);
+        // หน้าจอค่อยๆ มืดลง (semi-transparent dim ~60%)
+        blackoutOverlay.classList.add('active');
+        blackoutOverlay.style.transition = 'opacity 0.9s ease';
+        blackoutOverlay.style.opacity = '0.62';
 
-        await delay(1000);
+        // เริ่มดนตรี Cinematic Fantasy เบาๆ (Cello, Contrabass, Soft Choir)
+        playOrchestralSound('mystery-intro', 0.28);
+
+        // เว้น 0.8 วินาทีก่อนพูด
+        await delay(800);
         if (!isSummoning) return;
 
-        // ----------------------------------------------------------------------
-        // SCENE 2: ช่วงที่ 2 — ตรวจพบสิ่งผิดปกติ (1s - 3s)
-        // ----------------------------------------------------------------------
-        statusBadgeText.textContent = "ตรวจพบสิ่งผิดปกติ";
-        statusTitle.textContent = "ตรวจพบบางสิ่งจากอีกฝั่ง";
-        statusEnglish.textContent = "ANOMALY DETECTED BEYOND THE GATE";
+        // ── SCENE 2: AI พูด "มีบางอย่าง...กำลังเกิดขึ้น" (ช้า ลึกลับ rate=0.75) ──
+        statusBadgeText.textContent = "ตรวจพบสัญญาณผิดปกติ";
+        statusTitle.textContent = "มีสิ่งผิดปกติบางอย่าง...";
+        statusEnglish.textContent = "ANOMALY SIGNAL DETECTED";
 
-        // ดนตรีเริ่มเพิ่มเครื่องดนตรีทีละน้อย (Low Brass & Strings)
-        playOrchestralSound('tension-build', 0.35);
-
-        await speakLine(suspenseDialogue[0], 0.72, 0.75); // "เดี๋ยวก่อน..."
-        if (!isSummoning) return;
-        await delay(700);
-
-        await speakLine(suspenseDialogue[1], 0.72, 0.75); // "ระบบตรวจพบบางสิ่ง...จากอีกฝั่งของประตู"
+        // ใช้ onend — ไม่ใช้ setTimeout เดาเวลา
+        await speakLine(suspenseDialogue[0], 0.75, 0.85); // "มีบางอย่าง...กำลังเกิดขึ้น"
         if (!isSummoning) return;
 
-        // เสียงกระแทกประตูแบบ Cinematic Drum Thud (ไม่ใช่เสียงไฟช็อต)
-        playOrchestralSound('cinematic-boom', 0.5);
-        document.body.classList.add('scene-shake-subtle');
-        await delay(500);
+        // หลัง AI พูดจบ: ดนตรีดังขึ้นเล็กน้อย + วงเวทค่อยๆ ปรากฏ
+        playOrchestralSound('tension-build', 0.42);
+        magicCircleWrapper.classList.add('summoning-active');
 
-        // ----------------------------------------------------------------------
-        // SCENE 3: ช่วงที่ 3 — พลังงานเพิ่มขึ้น / ORCHESTRAL RISE (3s - 6s)
-        // ----------------------------------------------------------------------
-        energyMeterContainer.classList.add('active');
-        statusTitle.textContent = "ระดับพลังงานเพิ่มขึ้นอย่างรวดเร็ว";
-        statusEnglish.textContent = "ENERGY LEVEL RISING";
+        // ── SCENE 3: AI พูด "พลังงานบางอย่าง...กำลังเข้ามาใกล้" ──
+        statusBadgeText.textContent = "ตรวจพบพลังงาน";
+        statusTitle.textContent = "พลังงานบางอย่างกำลังเข้ามา...";
+        statusEnglish.textContent = "ENERGY SIGNATURE APPROACHING";
 
-        // ดนตรีค่อยๆ เร็วและหนักขึ้นด้วย String Ostinato & Low Drums
+        // ดนตรีเพิ่ม String, Cello, Choir, Cinematic Drum
         playOrchestralSound('orchestral-rise', 0.45);
 
-        const line2Promise = speakLine(suspenseDialogue[2], 0.78, 0.8); // "สัญญาณพลังงาน...กำลังเพิ่มขึ้นอย่างรวดเร็ว"
-
-        // หลอด Energy Meter วิ่ง 18% -> 32% -> 51% -> 74% -> 92%
-        await animateEnergyMeter(18, 92, 2200);
-        await line2Promise;
-
+        await speakLine(suspenseDialogue[1], 0.75, 0.85); // "พลังงานบางอย่าง...กำลังเข้ามาใกล้"
         if (!isSummoning) return;
 
-        // ----------------------------------------------------------------------
-        // SCENE 4: ช่วงที่ 4 — มีบางอย่างตอบกลับ (6s - 8s)
-        // ----------------------------------------------------------------------
-        await delay(500); // ทุกอย่างหยุดสั้นๆ 0.5s เพื่อสร้างความลุ้น
-        
-        // เล่นเสียง Cinematic Orchestra Boom & Timpani Hit
-        playOrchestralSound('cinematic-boom', 0.7);
-        playOrchestralSound('timpani-hit', 0.6);
-        document.body.classList.add('scene-shake-medium');
-        
-        await delay(900);
+        // ── SCENE 4: AI พูด "เดี๋ยวก่อน..." แล้วเว้นเงียบ 0.5s ──
+        await speakLine(suspenseDialogue[2], 0.75, 0.85); // "เดี๋ยวก่อน..."
         if (!isSummoning) return;
 
-        statusTitle.textContent = "มันตอบกลับมา...";
-        statusEnglish.textContent = "THE ENTITY RESPONDED";
-        
-        await speakLine(suspenseDialogue[3], 0.75, 0.75); // "มัน...ตอบกลับมา"
+        // เว้นเงียบสั้นๆ 0.5 วินาที (หลัง onend)
+        await delay(500);
         if (!isSummoning) return;
-        
-        // ดนตรีหยุดสั้นๆ 0.4s แล้วกลับเข้ามาใหญ่กว่าเดิม
-        await delay(400);
 
-        // ----------------------------------------------------------------------
-        // SCENE 5: ช่วงที่ 5 — ระบบเริ่มควบคุมไม่ได้ (8s - 10s)
-        // ----------------------------------------------------------------------
+        // ── SCENE 5: AI พูด "มันกำลังจะปรากฏตัว" + ดนตรีไต่ระดับ ──
+        statusBadgeText.textContent = "พลังงานพุ่งสูง";
+        statusTitle.textContent = "สิ่งมีชีวิตบางอย่างกำลังมา...";
+        statusEnglish.textContent = "LIFEFORM MATERIALIZING";
+
+        // ดนตรีไต่ระดับขึ้นเรื่อยๆ (Heavy Brass + Choir)
+        playOrchestralSound('final-build', 0.5);
+
+        await speakLine(suspenseDialogue[3], 0.75, 0.85); // "มันกำลังจะปรากฏตัว"
+        if (!isSummoning) return;
+
+        // ── SCENE 6: Energy Meter วิ่ง 35 → 58 → 76 → 91 → 99 ──
+        energyMeterContainer.classList.add('active');
         warningHud.classList.add('active');
         magicalEnergyAura.style.opacity = '1';
-
-        document.body.className = 'scene-shake-violent';
         statusDot.className = 'status-dot danger';
-        statusBadgeText.textContent = "สภาวะฉุกเฉิน";
-        statusTitle.textContent = "พลังงานเกินขีดจำกัด!";
-        statusEnglish.textContent = "CRITICAL: ENERGY LIMIT EXCEEDED";
+        statusBadgeText.textContent = "พลังงานพุ่งเกินขีดจำกัด";
+        statusTitle.textContent = "พลังงานกำลังพุ่งสูง!";
+        statusEnglish.textContent = "ENERGY SURGING — GATE UNSTABLE";
+        document.body.classList.add('scene-shake-subtle');
 
-        // ดนตรี Orchestra สปีดขึ้นและโหมกระหน่ำ (Fast Strings, Heavy Brass, Choir)
-        playOrchestralSound('final-build', 0.55);
-
-        // Energy Spike 92% -> 99%
-        await animateEnergyMeter(92, 99, 800);
-
-        await speakLine(suspenseDialogue[4], 0.88, 0.85); // "พลังงานเกินขีดจำกัด"
+        // วิ่ง Energy แบบขั้น: 35% → 58% → 76% → 91% → 99%
+        await animateEnergySteps([35, 58, 76, 91, 99], 420);
         if (!isSummoning) return;
 
-        await speakLine(suspenseDialogue[5], 0.9, 0.88);  // "ระบบไม่สามารถควบคุมประตูได้"
+        // ── SCENE 7: AI พูด "เตรียมตัวให้พร้อม...มันกำลังมา!" (เร็วขึ้น rate=0.9) ──
+        document.body.classList.add('scene-shake-medium');
+        playOrchestralSound('cinematic-boom', 0.7);
+
+        await speakLine(suspenseDialogue[4], 0.9, 0.95); // "เตรียมตัวให้พร้อม...มันกำลังมา!"
         if (!isSummoning) return;
 
-        playOrchestralSound('cinematic-boom', 0.8);
-        await speakLine(suspenseDialogue[6], 0.95, 1.05); // "มีบางอย่าง...กำลังพยายามออกมา!"
-        if (!isSummoning) return;
-
-        // ----------------------------------------------------------------------
-        // SCENE 6: ช่วงที่ 6 — COUNTDOWN ORCHESTRAL TIMPANI (10s - 11s)
-        // ----------------------------------------------------------------------
+        // ── SCENE 8: Countdown 3, 2, 1 ด้วยกลอง Timpani (ห้าม Beep Electronic) ──
         warningHud.classList.remove('active');
         countdownHud.classList.add('active');
+        document.body.classList.add('scene-shake-violent');
 
         for (let num = 3; num >= 1; num--) {
             if (!isSummoning) return;
             countdownDigit.textContent = num;
-            
-            // ใช้เสียงกลองใหญ่ Timpani Boom 1 ครั้งต่อตัวเลข (ห้ามใช้ Beep Electronic เด็ดขาด!)
-            playOrchestralSound('timpani-hit', 0.7);
-
-            await delay(700);
+            // Timpani Drum Boom 1 ครั้งต่อตัวเลข
+            playOrchestralSound('timpani-hit', 0.78);
+            await delay(800);
         }
 
-        // ----------------------------------------------------------------------
-        // SCENE 7: ช่วงที่ 7 — ความเงียบก่อนเฉลย (11s - 12s)
-        // ----------------------------------------------------------------------
-        // หยุดดนตรีและข้อความทั้งหมดลงทันทีก่อนเลข 1 จบ
+        // ── SCENE 9: หลังเลข 1 — หยุดดนตรีทันที ──
         window.speechSynthesis.cancel();
-        stopAllOrchestralMusic(100);
+        stopAllOrchestralMusic(80); // หยุดทันที ไม่ fade
 
         countdownHud.classList.remove('active');
         energyMeterContainer.classList.remove('active');
-
-        // Blackout Screen ชัตดาวน์หน้าจอดำสนิท
-        blackoutOverlay.classList.add('active');
         document.body.className = '';
 
-        // ความเงียบสนิท 1.0 วินาที สร้างความลุ้นสูงสุด
-        await delay(1000);
+        // ── SCENE 10: จอดำสนิทและเงียบ 1 วินาที ──
+        blackoutOverlay.style.transition = 'opacity 0.12s ease';
+        blackoutOverlay.style.opacity = '1'; // ดำสนิท
+
+        await delay(1000); // ความเงียบสนิท สร้างความลุ้นสูงสุด
         if (!isSummoning) return;
 
-        // ----------------------------------------------------------------------
-        // SCENE 8: ช่วงเปิดตัว — REVEAL CLIMAX (12s+)
-        // ----------------------------------------------------------------------
-        blackoutOverlay.classList.remove('active');
-        
-        // เสียงเปิดตัวด้วย Orchestra Impact + Epic Drum Hit + Bass Drop
-        playOrchestralSound('reveal-impact', 0.9);
+        // ── SCENE 11: Orchestra Impact + Flash + เปิดวิดีโอเต็มจอ ──
+        // เล่น Orchestra Impact / Epic Drum / Bass Hit ก่อน
+        playOrchestralSound('reveal-impact', 0.95);
 
-        // Flash สีขาววาบเปิดประตู
+        // Flash หน้าจอสีขาววาบ
+        blackoutOverlay.style.opacity = '0';
+        blackoutOverlay.style.transition = 'opacity 0.05s';
         flashOverlay.classList.add('active');
 
         setTimeout(() => {
@@ -663,7 +634,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     * วิ่งหลอดพลังงาน Energy Meter (18% -> 99%)
+     * วิ่งหลอดพลังงาน Energy Meter แบบ Smooth Interpolation (startVal → endVal)
      */
     function animateEnergyMeter(startVal, endVal, durationMs) {
         return new Promise(resolve => {
@@ -683,6 +654,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }, stepDuration);
         });
+    }
+
+    /**
+     * วิ่ง Energy Meter แบบขั้น (Stepped) ตาม milestones ที่กำหนด
+     * @param {number[]} steps - ค่าพลังงานแต่ละขั้น เช่น [35, 58, 76, 91, 99]
+     * @param {number} stepDelayMs - เวลา (ms) ในการวิ่งจากขั้นหนึ่งไปอีกขั้น
+     */
+    async function animateEnergySteps(steps, stepDelayMs = 400) {
+        let prev = 0;
+        for (const target of steps) {
+            await animateEnergyMeter(prev, target, stepDelayMs);
+            prev = target;
+            await delay(180); // หยุดสั้นๆ ระหว่างขั้นเพื่อให้เห็นค่าแต่ละขั้น
+        }
     }
 
     /**
@@ -723,13 +708,18 @@ document.addEventListener('DOMContentLoaded', () => {
         dragonVideo.classList.remove('active');
         document.body.className = '';
         
-        // Reset Overlays & HUDs
+        // Reset Overlays, HUDs & summoning state
         flashOverlay.classList.remove('active');
         blackoutOverlay.classList.remove('active');
+        blackoutOverlay.style.opacity = '';          // reset inline opacity
+        blackoutOverlay.style.transition = '';
         energyMeterContainer.classList.remove('active');
         warningHud.classList.remove('active');
         countdownHud.classList.remove('active');
         magicalEnergyAura.style.opacity = '0';
+        magicCircleWrapper.classList.remove('summoning-active'); // reset dim effect
+        energyFill.style.width = '0%';
+        energyValue.textContent = '0%';
 
         isSummoning = false;
 

@@ -176,7 +176,21 @@ html, body {
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: transform 0.5s ease;
+    transition: transform 0.5s ease, filter 0.8s ease, opacity 0.8s ease;
+    opacity: 0.55;
+    filter: brightness(0.7);
+}
+
+/* When summoning starts: magic circle pulses to full brightness */
+.magic-circle-wrapper.summoning-active {
+    opacity: 1;
+    filter: brightness(1.3) drop-shadow(0 0 25px rgba(255, 215, 0, 0.6));
+    animation: summoningCirclePulse 1.8s ease-in-out infinite alternate;
+}
+
+@keyframes summoningCirclePulse {
+    0% { filter: brightness(1.1) drop-shadow(0 0 15px rgba(168, 85, 247, 0.5)); }
+    100% { filter: brightness(1.5) drop-shadow(0 0 40px rgba(255, 215, 0, 0.8)); }
 }
 
 .magic-aura {
@@ -710,7 +724,9 @@ body.scene-shake-violent .main-container {
 }
 
 .blackout-overlay.active {
-    opacity: 1;
+    /* Opacity is controlled by JS inline style for partial dim or full blackout.
+       Only enforce pointer-events here. */
+    opacity: 0.62;  /* default dim — JS can override to 1.0 for full blackout */
     pointer-events: auto;
 }
 
