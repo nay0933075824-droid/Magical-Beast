@@ -346,45 +346,106 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     * พูดประโยคเดี่ยวและลดเสียงเพลงดนตรีลงชั่วคราวขณะ AI กำลังพูด (Ducking)
+     * ดึงเสียงพากย์ภาษาไทยจาก Online Audio API (Google TTS API)
+     * รองรับเสียงภาษาไทย 100% บนทุกเบราว์เซอร์ ไม่ต้องติดตั้งภาษาเพิ่มใน Windows
+     * @param {string} text 
+     * @param {number} rate 
+     */
+    function playOnlineThaiTTS(text, rate = 1.0) {
+        return new Promise((resolve, reject) => {
+            // ทำความสะอาดข้อความเพื่อสร้าง URL เสียงภาษาไทย
+            const cleanText = text.replace(/[\.\.\.]+/g, " ").trim();
+            const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(cleanText)}&tl=th&client=tw-ob`;
+            
+            const audio = new Audio(url);
+            // ปรับความเร็วเสียง (playbackRate) เพื่อสร้างความเร้าใจ
+            audio.playbackRate = Math.min(1.35, Math.max(0.85, rate));
+
+            let resolved = false;
+
+            function finish(isError = false) {
+                if (!resolved) {
+                    resolved = true;
+                    if (isError) {
+                        reject(new Error("Online TTS failed"));
+                    } else {
+                        resolve();
+                    }
+                }
+            }
+
+            audio.onended = () => {
+                console.log("Online Thai Audio finished playing:", text);
+                finish(false);
+            };
+
+            audio.onerror = (e) => {
+                console.warn("Online Thai Audio load error:", e);
+                finish(true);
+            };
+
+            const playPromise = audio.play();
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    console.log("Online Thai Audio playing:", text);
+                }).catch(err => {
+                    console.warn("Autoplay block or audio fetch fail:", err);
+                    finish(true);
+                });
+            }
+
+            // Safety timeout 4.5 วินาที
+            setTimeout(() => {
+                finish(false);
+            }, 4500);
+        });
+    }
+
+    /**
+     * พูดประโยคเดี่ยวผ่าน Online Audio API + Fallback Web Speech API
+     * ลดเสียงเพลงดนตรีลงชั่วคราวขณะ AI กำลังพูด (Ducking)
      * @param {string} text 
      * @param {number} rate 
      * @param {number} pitch 
      */
-    function speakLine(text, rate = 0.72, pitch = 0.75) {
+    async function speakLine(text, rate = 0.78, pitch = 0.88) {
+        // แสดงข้อความบน UI ทันทีเพื่อให้คนดูอ่านตามได้
+        if (statusTitle) statusTitle.textContent = text;
+        if (transcriptText) transcriptText.textContent = `"${text}"`;
+
+        // ลดเสียงดนตรีลงเพื่อเปิดทางให้เสียงพากย์ AI ชัดเจน 100%
+        setOrchestraDucking(true);
+
+        // 1. พยายามใช้ Online Thai Audio API ก่อน (เสียงภาษาไทยชัดเจน 100% ไม่พึ่ง Windows TTS)
+        try {
+            await playOnlineThaiTTS(text, rate);
+            setOrchestraDucking(false);
+            return;
+        } catch (onlineErr) {
+            console.warn("Online Thai Audio API error, switching to SpeechSynthesis fallback:", onlineErr);
+        }
+
+        // 2. Fallback: เบราว์เซอร์ Web Speech API
         return new Promise((resolve) => {
             if (!('speechSynthesis' in window)) {
+                setOrchestraDucking(false);
                 resolve();
                 return;
             }
 
-            // แสดงข้อความบน UI ทันทีเพื่อให้คนดูอ่านตามได้
-            if (statusTitle) statusTitle.textContent = text;
-            if (transcriptText) transcriptText.textContent = `"${text}"`;
-
-            loadTTSVoices(); // โหลดเสียงล่าสุดเผื่อยังไม่ได้จัดเก็บ
-
+            loadTTSVoices();
             try {
                 window.speechSynthesis.cancel();
-                if (window.speechSynthesis.paused) {
-                    window.speechSynthesis.resume();
-                }
+                if (window.speechSynthesis.paused) window.speechSynthesis.resume();
             } catch(e) {}
-
-            // Duck music volume down for voice clarity
-            setOrchestraDucking(true);
 
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = "th-TH";
             utterance.rate = rate;
             utterance.pitch = pitch;
-
-            if (ttsVoice) {
-                utterance.voice = ttsVoice;
-            }
+            if (ttsVoice) utterance.voice = ttsVoice;
 
             let hasResolved = false;
-
             function finishLine() {
                 if (!hasResolved) {
                     hasResolved = true;
@@ -394,33 +455,18 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             utterance.onstart = () => {
-                console.log("AI เริ่มพูด:", text);
-                try {
-                    if (window.speechSynthesis.paused) {
-                        window.speechSynthesis.resume();
-                    }
-                } catch(e) {}
+                try { if (window.speechSynthesis.paused) window.speechSynthesis.resume(); } catch(e) {}
             };
-
-            utterance.onend = () => {
-                console.log("AI พูดจบ:", text);
-                finishLine();
-            };
-
-            utterance.onerror = (err) => {
-                console.warn("TTS line error:", err);
-                finishLine();
-            };
+            utterance.onend = finishLine;
+            utterance.onerror = finishLine;
 
             try {
                 window.speechSynthesis.speak(utterance);
                 window.speechSynthesis.resume();
             } catch (e) {
-                console.warn("Speech Synthesis Exception:", e);
                 finishLine();
             }
 
-            // Dynamic Safety timeout based on text length and rate
             const approxDurationMs = Math.max(3000, (text.length * 280) / rate);
             setTimeout(finishLine, approxDurationMs);
         });
