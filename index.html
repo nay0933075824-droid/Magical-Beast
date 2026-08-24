@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="ระบบอัญเชิญมังกรเวทมนตร์ - งานเปิดตัวธีมสัตว์เวทมนตร์ (Magical Dragon Summoning System)">
-    <title>MAGICAL DRAGON SUMMONING - ระบบอัญเชิญมังกรเวทมนตร์</title>
+    <meta name="description" content="ระบบอัญเชิญสัตว์เวทมนตร์ - งานเปิดตัวสัตว์เวทมนตร์ (Magical Creature Summoning System)">
+    <title>MAGICAL CREATURE SUMMONING - ระบบอัญเชิญสัตว์เวทมนตร์</title>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -24,20 +24,21 @@
         <!-- Header Title Section -->
         <header class="header">
             <div class="event-badge">
-                <span class="star-icon">✦</span> MAGICAL THEME LAUNCH EVENT <span class="star-icon">✦</span>
+                <span class="star-icon">✦</span> MAGICAL CREATURE LAUNCH EVENT <span class="star-icon">✦</span>
             </div>
-            <h1 class="main-title">MAGICAL DRAGON SUMMONING</h1>
-            <p class="subtitle">กล่าวคำอัญเชิญเพื่อปลุกมังกร</p>
+            <h1 class="main-title">MAGICAL CREATURE SUMMONING</h1>
+            <p class="subtitle">กล่าวคำอัญเชิญเพื่อปลุกพลังเวทมนตร์</p>
         </header>
 
         <!-- Central Magic Circle Visualizer -->
         <div class="magic-circle-wrapper" id="magicCircleWrapper">
-            <div class="magic-aura"></div>
+            <div class="magic-aura" id="magicAura"></div>
+            <div class="lightning-overlay" id="lightningOverlay"></div>
             
             <!-- SVG Rotating Rune Circle -->
             <svg class="magic-circle-svg" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg">
                 <!-- Outer Rune Ring -->
-                <g class="ring-outer">
+                <g class="ring-outer" id="ringOuter">
                     <circle cx="250" cy="250" r="230" class="circle-line thin" />
                     <circle cx="250" cy="250" r="220" class="circle-line dashed" />
                     <circle cx="250" cy="250" r="210" class="circle-line gold" />
@@ -45,42 +46,44 @@
                     <path id="runePath" d="M 250,250 m -215,0 a 215,215 0 1,1 430,0 a 215,215 0 1,1 -430,0" fill="none" />
                     <text class="rune-text">
                         <textPath href="#runePath" startOffset="0%">
-                            ᚠ ᚢ ᚦ ᚨ ᚱ ᚲ ✦ DRAGONIS MAGICA ✦ ᚷ ᚹ ᚺ ᚾ ᛁ ᛃ ✦ SUMMON THE ANCIENT ONE ✦ ᛇ ᛈ ᛉ ᛋ ᛏ
+                            ᚠ ᚢ ᚦ ᚨ ᚱ ᚲ ✦ ANCIENT MAGICAL ENERGY ✦ ᚷ ᚹ ᚺ ᚾ ᛁ ᛃ ✦ UNKNOWN CREATURE AWAKENING ✦ ᛇ ᛈ ᛉ ᛋ ᛏ
                         </textPath>
                     </text>
                 </g>
 
                 <!-- Middle Geometric Star (Octagram) -->
-                <g class="ring-middle">
+                <g class="ring-middle" id="ringMiddle">
                     <circle cx="250" cy="250" r="170" class="circle-line gold-thin" />
                     <polygon points="250,80 295,205 420,250 295,295 250,420 205,295 80,250 205,205" class="star-polygon" />
                     <polygon points="250,80 295,205 420,250 295,295 250,420 205,295 80,250 205,205" class="star-polygon rot-45" />
                     <circle cx="250" cy="250" r="120" class="circle-line inner-glow" />
                 </g>
 
-                <!-- Inner Core & Dragon Glyph -->
-                <g class="ring-inner">
+                <!-- Inner Core & Mystery Glyph -->
+                <g class="ring-inner" id="ringInner">
                     <circle cx="250" cy="250" r="85" class="core-circle" />
-                    <!-- Dragon Emblem Path -->
-                    <path class="dragon-glyph" d="M250,185 C260,205 280,215 295,200 C310,185 320,210 300,230 C280,250 290,270 270,285 C255,295 250,315 250,315 C250,315 245,295 230,285 C210,270 220,250 200,230 C180,210 190,185 205,200 C220,215 240,205 250,185 Z" />
-                    <circle cx="250" cy="250" r="15" class="dragon-eye" />
+                    <!-- Mysterious Rune Glyph -->
+                    <path class="mystery-glyph" d="M250,180 L285,250 L250,320 L215,250 Z M250,210 L265,250 L250,290 L235,250 Z" />
+                    <circle cx="250" cy="250" r="18" class="mystery-eye" />
                 </g>
             </svg>
 
-            <!-- Center Core Pulse Node -->
+            <!-- Center Core Sphere Node -->
             <div class="core-node" id="coreNode">
-                <div class="node-icon">🐉</div>
+                <div class="node-icon" id="nodeIcon">🔮</div>
             </div>
         </div>
 
-        <!-- Status & Voice Feedback Display -->
-        <div class="status-panel">
+        <!-- Suspense Status Panel -->
+        <div class="status-panel" id="statusPanel">
             <div class="status-indicator">
                 <span class="status-dot" id="statusDot"></span>
                 <span class="status-badge-text" id="statusBadgeText">พร้อมใช้งาน</span>
             </div>
             
-            <h2 class="status-text" id="statusText">ระบบเวทมนตร์พร้อมใช้งาน</h2>
+            <!-- Suspense Main Title (NEVER SHOWS ANIMAL NAME BEFORE VIDEO) -->
+            <h2 class="status-title" id="statusTitle">ระบบอัญเชิญพร้อมใช้งาน</h2>
+            <div class="status-english" id="statusEnglish">READY FOR SUMMONING COMMAND</div>
             
             <div class="transcript-box" id="transcriptBox">
                 <span class="transcript-label">เสียงที่ได้ยิน:</span>
@@ -88,7 +91,7 @@
             </div>
             
             <div class="command-hint">
-                <span class="hint-icon">🎙️</span> พูดว่า: <strong class="command-phrase">“มังกรจงออกมา”</strong> หรือ <strong class="command-phrase">“มังกร จงออกมา”</strong>
+                <span class="hint-icon">🎙️</span> พูดว่า: <strong class="command-phrase">“มังกรจงออกมา”</strong>
             </div>
         </div>
 
@@ -105,18 +108,14 @@
             </button>
         </div>
 
-        <!-- Footer / Shortcut Note -->
+        <!-- Footer Note -->
         <footer class="footer-note">
             <span>กด <kbd>ESC</kbd> เพื่อหยุดวิดีโอฉุกเฉินและกลับสู่หน้ารอรับคำสั่ง</span>
         </footer>
     </main>
 
-    <!-- Summoning Portal Magic Overlay (Screen Flash Effect) -->
-    <div class="summon-portal-overlay" id="summonPortalOverlay">
-        <div class="portal-ring"></div>
-        <div class="portal-light"></div>
-        <div class="portal-title" id="portalTitle">กำลังเปิดประตูเวทมนตร์...</div>
-    </div>
+    <!-- White Flash Portal Overlay for Impact Climax -->
+    <div class="flash-overlay" id="flashOverlay"></div>
 
     <!-- Fullscreen Video Element -->
     <video id="dragonVideo" preload="auto" playsinline>

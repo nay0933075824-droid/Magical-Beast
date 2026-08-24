@@ -1,21 +1,22 @@
 /* ==========================================================================
-   MAGICAL DRAGON SUMMONING - STYLESHEET
-   Theme: Magical Dragon / Dark Magic / Shimmering Gold & Deep Violet
+   MAGICAL CREATURE SUMMONING - SUSPENSE SHOW STYLESHEET
+   Theme: Mysterious Energy / Dark Magic / Suspense Reveal
    ========================================================================== */
 
 /* Design Tokens */
 :root {
-    --bg-primary: #05030a;
-    --bg-secondary: #0c061a;
-    --bg-card: rgba(18, 10, 36, 0.65);
+    --bg-primary: #030206;
+    --bg-secondary: #0a0418;
+    --bg-card: rgba(15, 8, 32, 0.75);
     
     --gold-primary: #ffd700;
-    --gold-light: #fff3a1;
+    --gold-light: #fff5b8;
     --gold-dark: #b8860b;
     
     --violet-glow: #a855f7;
-    --violet-deep: #4c1d95;
+    --violet-deep: #3b0764;
     --cyan-glow: #06b6d4;
+    --magenta-glow: #ec4899;
     --rose-glow: #f43f5e;
     
     --text-primary: #f8fafc;
@@ -43,9 +44,10 @@ html, body {
     font-family: var(--font-body);
     user-select: none;
     -webkit-font-smoothing: antialiased;
+    transition: filter 0.6s ease, background-color 0.6s ease;
 }
 
-/* Canvas & Ambient Lighting */
+/* Background Canvas & Ambient Glow */
 #particleCanvas {
     position: fixed;
     top: 0;
@@ -64,21 +66,22 @@ html, body {
     z-index: 0;
     opacity: 0.35;
     animation: ambient-pulse 8s ease-in-out infinite alternate;
+    transition: opacity 0.5s ease, filter 0.5s ease;
 }
 
 .bg-glow-purple {
     top: -10%;
     left: -10%;
-    width: 60vw;
-    height: 60vw;
+    width: 65vw;
+    height: 65vw;
     background: radial-gradient(circle, var(--violet-deep), transparent 70%);
 }
 
 .bg-glow-gold {
     bottom: -15%;
     right: -10%;
-    width: 55vw;
-    height: 55vw;
+    width: 60vw;
+    height: 60vw;
     background: radial-gradient(circle, #78350f, transparent 70%);
 }
 
@@ -98,7 +101,7 @@ html, body {
     justify-content: space-between;
     padding: 2rem 1.5rem;
     text-align: center;
-    transition: opacity 0.5s ease;
+    transition: transform 0.2s ease, filter 0.5s ease;
 }
 
 /* Header Section */
@@ -108,6 +111,7 @@ html, body {
     flex-direction: column;
     align-items: center;
     gap: 0.6rem;
+    transition: opacity 0.5s ease;
 }
 
 .event-badge {
@@ -138,7 +142,7 @@ html, body {
 
 .main-title {
     font-family: var(--font-heading);
-    font-size: clamp(2rem, 5vw, 3.8rem);
+    font-size: clamp(1.8rem, 4.5vw, 3.5rem);
     font-weight: 900;
     letter-spacing: 3px;
     background: linear-gradient(185deg, #ffffff 0%, var(--gold-light) 40%, var(--gold-primary) 70%, var(--gold-dark) 100%);
@@ -149,7 +153,7 @@ html, body {
 }
 
 .subtitle {
-    font-size: clamp(1rem, 2vw, 1.25rem);
+    font-size: clamp(0.95rem, 2vw, 1.2rem);
     color: var(--text-muted);
     font-weight: 300;
     letter-spacing: 1.5px;
@@ -158,12 +162,13 @@ html, body {
 /* Magic Circle Section */
 .magic-circle-wrapper {
     position: relative;
-    width: clamp(280px, 40vw, 420px);
-    height: clamp(280px, 40vw, 420px);
+    width: clamp(280px, 38vw, 410px);
+    height: clamp(280px, 38vw, 410px);
     margin: 1.5rem 0;
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: transform 0.5s ease;
 }
 
 .magic-aura {
@@ -174,6 +179,18 @@ html, body {
     background: radial-gradient(circle, rgba(168, 85, 247, 0.25) 0%, rgba(255, 215, 0, 0.15) 50%, transparent 70%);
     filter: blur(20px);
     animation: aura-pulse 3s ease-in-out infinite alternate;
+    transition: all 0.5s ease;
+}
+
+.lightning-overlay {
+    position: absolute;
+    width: 110%;
+    height: 110%;
+    border-radius: 50%;
+    pointer-events: none;
+    opacity: 0;
+    background: radial-gradient(circle, rgba(6, 182, 212, 0.4) 0%, transparent 60%);
+    transition: opacity 0.5s ease;
 }
 
 @keyframes aura-pulse {
@@ -187,6 +204,7 @@ html, body {
     height: 100%;
     overflow: visible;
     filter: drop-shadow(0 0 12px rgba(255, 215, 0, 0.3));
+    transition: filter 0.5s ease;
 }
 
 .circle-line {
@@ -222,7 +240,7 @@ html, body {
     opacity: 0.85;
 }
 
-.dragon-glyph {
+.mystery-glyph {
     fill: none;
     stroke: var(--gold-primary);
     stroke-width: 2.5;
@@ -230,20 +248,22 @@ html, body {
     filter: drop-shadow(0 0 8px var(--gold-primary));
 }
 
-.dragon-eye {
-    fill: var(--rose-glow);
-    filter: drop-shadow(0 0 6px var(--rose-glow));
+.mystery-eye {
+    fill: var(--cyan-glow);
+    filter: drop-shadow(0 0 8px var(--cyan-glow));
 }
 
 /* Magic Circle Rotations */
 .ring-outer {
     transform-origin: 250px 250px;
     animation: rotate-cw 45s linear infinite;
+    transition: animation-duration 0.5s ease;
 }
 
 .ring-middle {
     transform-origin: 250px 250px;
     animation: rotate-ccw 25s linear infinite;
+    transition: animation-duration 0.5s ease;
 }
 
 .ring-inner {
@@ -282,55 +302,21 @@ html, body {
     cursor: default;
 }
 
-.core-node:hover {
-    transform: scale(1.15);
-    box-shadow: 0 0 50px var(--gold-primary), 0 0 80px var(--cyan-glow);
-}
-
-/* Active Listening / Summoning Circle Modifiers */
-.magic-circle-wrapper.listening .ring-outer {
-    animation-duration: 15s;
-}
-
-.magic-circle-wrapper.listening .magic-aura {
-    background: radial-gradient(circle, rgba(6, 182, 212, 0.4) 0%, rgba(168, 85, 247, 0.3) 50%, transparent 70%);
-    animation: aura-pulse 1.2s ease-in-out infinite alternate;
-}
-
-.magic-circle-wrapper.summoning {
-    animation: magic-shake 0.5s ease-in-out infinite alternate;
-}
-
-.magic-circle-wrapper.summoning .magic-aura {
-    background: radial-gradient(circle, rgba(255, 215, 0, 0.6) 0%, rgba(168, 85, 247, 0.5) 50%, transparent 70%);
-    filter: blur(35px);
-}
-
-@keyframes magic-shake {
-    0% { transform: scale(1) rotate(0deg); }
-    100% { transform: scale(1.06) rotate(2deg); }
-}
-
-/* Status Panel Section */
+/* Suspense Status Panel Section */
 .status-panel {
-    width: min(90%, 540px);
+    width: min(92%, 540px);
     background: var(--bg-card);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
     border: 1px solid rgba(255, 215, 0, 0.25);
     border-radius: 20px;
     padding: 1.5rem;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.8rem;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(255, 215, 0, 0.05);
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
-}
-
-.status-panel:hover {
-    border-color: rgba(255, 215, 0, 0.45);
-    box-shadow: 0 10px 50px rgba(168, 85, 247, 0.25);
+    gap: 0.7rem;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6), inset 0 0 20px rgba(255, 215, 0, 0.05);
+    transition: all 0.5s ease;
 }
 
 .status-indicator {
@@ -339,7 +325,7 @@ html, body {
     gap: 0.6rem;
     padding: 0.3rem 0.9rem;
     border-radius: 999px;
-    background: rgba(0, 0, 0, 0.3);
+    background: rgba(0, 0, 0, 0.4);
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -351,22 +337,16 @@ html, body {
     transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-.status-dot.active {
-    background-color: var(--cyan-glow);
-    box-shadow: 0 0 10px var(--cyan-glow);
-    animation: dot-pulse 1.5s infinite;
-}
-
 .status-dot.listening {
     background-color: #22c55e;
     box-shadow: 0 0 12px #22c55e;
     animation: dot-pulse 1s infinite;
 }
 
-.status-dot.summoning {
-    background-color: var(--gold-primary);
-    box-shadow: 0 0 15px var(--gold-primary);
-    animation: dot-pulse 0.5s infinite;
+.status-dot.suspense {
+    background-color: var(--magenta-glow);
+    box-shadow: 0 0 15px var(--magenta-glow);
+    animation: dot-pulse 0.4s infinite;
 }
 
 @keyframes dot-pulse {
@@ -382,21 +362,31 @@ html, body {
     font-weight: 500;
 }
 
-.status-text {
-    font-size: clamp(1.2rem, 3vw, 1.6rem);
-    font-weight: 600;
-    color: var(--text-primary);
-    min-height: 2.2rem;
+.status-title {
+    font-size: clamp(1.2rem, 3vw, 1.65rem);
+    font-weight: 700;
+    color: var(--gold-light);
+    min-height: 2.3rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: color 0.3s ease;
+    text-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
+    transition: all 0.3s ease;
+}
+
+.status-english {
+    font-family: var(--font-heading);
+    font-size: 0.75rem;
+    letter-spacing: 2.5px;
+    color: var(--cyan-glow);
+    opacity: 0.9;
+    text-transform: uppercase;
 }
 
 .transcript-box {
     width: 100%;
     padding: 0.6rem 1rem;
-    background: rgba(0, 0, 0, 0.4);
+    background: rgba(0, 0, 0, 0.45);
     border-radius: 12px;
     border: 1px dashed rgba(255, 255, 255, 0.15);
     display: flex;
@@ -415,7 +405,6 @@ html, body {
     color: var(--gold-light);
     font-style: italic;
     font-weight: 400;
-    word-break: break-word;
 }
 
 .command-hint {
@@ -440,6 +429,7 @@ html, body {
     justify-content: center;
     gap: 1rem;
     margin-top: 1.5rem;
+    transition: opacity 0.5s ease;
 }
 
 .btn {
@@ -466,11 +456,6 @@ html, body {
 .btn-primary:hover {
     transform: translateY(-3px);
     box-shadow: 0 8px 30px rgba(255, 215, 0, 0.5);
-    background: linear-gradient(135deg, #ffe033 0%, var(--gold-primary) 100%);
-}
-
-.btn-primary:active {
-    transform: translateY(0);
 }
 
 .btn-secondary {
@@ -484,23 +469,8 @@ html, body {
     background: rgba(255, 215, 0, 0.15);
     border-color: var(--gold-primary);
     transform: translateY(-3px);
-    box-shadow: 0 6px 25px rgba(255, 215, 0, 0.2);
 }
 
-.btn-ghost {
-    background: transparent;
-    color: var(--text-muted);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-}
-
-.btn-ghost:hover {
-    color: var(--text-primary);
-    border-color: var(--violet-glow);
-    background: rgba(168, 85, 247, 0.15);
-    transform: translateY(-2px);
-}
-
-/* Footer Section */
 .footer-note {
     margin-top: 1.5rem;
     font-size: 0.8rem;
@@ -518,51 +488,142 @@ kbd {
     font-size: 0.75rem;
 }
 
-/* Summoning Portal Overlay (Flash visual transition before video) */
-.summon-portal-overlay {
+/* ==========================================================================
+   SUSPENSE STAGES & SCREEN SHAKE ANIMATIONS
+   ========================================================================== */
+
+/* Stage 1: Darken background, small energy sparkles */
+body.stage-1 {
+    filter: brightness(0.75);
+    background-color: #020104;
+}
+
+body.stage-1 .magic-circle-wrapper {
+    transform: scale(1.05);
+}
+
+body.stage-1 .ring-outer {
+    animation-duration: 20s;
+}
+
+/* Stage 2: Faster rotation, heartbeat, screen shake stage 1 */
+body.stage-2 {
+    filter: brightness(0.85);
+}
+
+body.stage-2 .main-container {
+    animation: screenShakeStage1 1.2s ease-in-out infinite;
+}
+
+body.stage-2 .magic-circle-wrapper {
+    transform: scale(1.12);
+}
+
+body.stage-2 .ring-outer {
+    animation-duration: 10s;
+}
+
+body.stage-2 .ring-middle {
+    animation-duration: 6s;
+}
+
+body.stage-2 .magic-aura {
+    background: radial-gradient(circle, rgba(236, 72, 153, 0.4) 0%, rgba(255, 215, 0, 0.3) 50%, transparent 70%);
+    filter: blur(30px);
+}
+
+body.stage-2 .status-panel {
+    border-color: var(--magenta-glow);
+    box-shadow: 0 0 30px rgba(236, 72, 153, 0.4);
+}
+
+/* Stage 3: Intense rotation, lightning aura, screen shake stage 2 */
+body.stage-3 {
+    filter: brightness(1.1);
+}
+
+body.stage-3 .main-container {
+    animation: screenShakeStage2 0.6s ease-in-out infinite;
+}
+
+body.stage-3 .magic-circle-wrapper {
+    transform: scale(1.25);
+}
+
+body.stage-3 .ring-outer {
+    animation-duration: 4s;
+}
+
+body.stage-3 .ring-middle {
+    animation-duration: 2.5s;
+}
+
+body.stage-3 .lightning-overlay {
+    opacity: 0.85;
+    animation: lightning-flash 0.3s ease-in-out infinite alternate;
+}
+
+body.stage-3 .magic-aura {
+    background: radial-gradient(circle, rgba(255, 215, 0, 0.7) 0%, rgba(168, 85, 247, 0.6) 50%, transparent 70%);
+    filter: blur(45px);
+}
+
+body.stage-3 .status-panel {
+    border-color: var(--gold-primary);
+    box-shadow: 0 0 50px rgba(255, 215, 0, 0.6);
+}
+
+/* Stage 4: Climax Impact Zoom & Flash */
+body.stage-4 .main-container {
+    animation: impactZoom 0.4s ease-in forwards;
+}
+
+/* Screen Shake Keyframes */
+@keyframes screenShakeStage1 {
+    0% { transform: translate(0, 0); }
+    25% { transform: translate(-3px, 2px); }
+    50% { transform: translate(3px, -2px); }
+    75% { transform: translate(-2px, -1px); }
+    100% { transform: translate(0, 0); }
+}
+
+@keyframes screenShakeStage2 {
+    0% { transform: translate(0, 0) scale(1); }
+    20% { transform: translate(-5px, 4px) scale(1.006); }
+    40% { transform: translate(5px, -4px) scale(0.994); }
+    60% { transform: translate(-4px, -3px) scale(1.008); }
+    80% { transform: translate(4px, 3px) scale(0.996); }
+    100% { transform: translate(0, 0) scale(1); }
+}
+
+@keyframes impactZoom {
+    0% { transform: scale(1); filter: brightness(1); }
+    50% { transform: scale(1.2) rotate(3deg); filter: brightness(2); }
+    100% { transform: scale(1.5) rotate(-5deg); filter: brightness(4); }
+}
+
+@keyframes lightning-flash {
+    0% { opacity: 0.3; transform: scale(1); }
+    100% { opacity: 0.9; transform: scale(1.08); }
+}
+
+/* White Flash Overlay */
+.flash-overlay {
     position: fixed;
     top: 0;
     left: 0;
     width: 100vw;
     height: 100vh;
-    z-index: 999;
-    background: radial-gradient(circle at center, rgba(168, 85, 247, 0.9) 0%, rgba(5, 3, 10, 0.98) 70%);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
+    background-color: #ffffff;
+    z-index: 9999;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.6s ease;
+    transition: opacity 0.2s ease-out;
 }
 
-.summon-portal-overlay.active {
+.flash-overlay.active {
     opacity: 1;
     pointer-events: auto;
-}
-
-.portal-ring {
-    width: 250px;
-    height: 250px;
-    border-radius: 50%;
-    border: 4px solid var(--gold-primary);
-    box-shadow: 0 0 50px var(--gold-primary), inset 0 0 50px var(--violet-glow);
-    animation: portal-spin 1.5s linear infinite;
-}
-
-@keyframes portal-spin {
-    0% { transform: rotate(0deg) scale(0.8); }
-    50% { transform: rotate(180deg) scale(1.2); }
-    100% { transform: rotate(360deg) scale(0.8); }
-}
-
-.portal-title {
-    margin-top: 2rem;
-    font-family: var(--font-heading);
-    font-size: 1.8rem;
-    color: var(--gold-light);
-    text-shadow: 0 0 20px var(--gold-primary);
-    letter-spacing: 2px;
 }
 
 /* Fullscreen Dragon Video Element */
@@ -596,7 +657,7 @@ body.video-active * {
 body.video-active .main-container,
 body.video-active #particleCanvas,
 body.video-active .ambient-glow,
-body.video-active .summon-portal-overlay {
+body.video-active .flash-overlay {
     opacity: 0 !important;
     pointer-events: none !important;
 }

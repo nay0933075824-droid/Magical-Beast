@@ -1,41 +1,55 @@
 /**
  * ==========================================================================
- * MAGICAL DRAGON SUMMONING SYSTEM
- * - Web Speech API (th-TH) recognition & normalization
- * - SpeechSynthesisUtterance (th-TH) Text-to-Speech
- * - Fullscreen video controller with auto-restart recognition
+ * MAGICAL CREATURE SUMMONING SHOW - SUSPENSE ENGINE
+ * - Zero spoiler creature reveal
+ * - Multi-stage AI narration with randomized suspense delays
+ * - Visual stage controller (screen shake, rotation, lightning, white flash)
+ * - Dual Audio Engine (Web Audio API Synthesizer + MP3 fallback)
+ * - Fullscreen video reveal controller
  * ==========================================================================
  */
 
 document.addEventListener('DOMContentLoaded', () => {
+
+    // ==========================================================================
+    // 1. EXTENSIBLE CONFIGURATION
+    // ==========================================================================
+    const summons = [
+        {
+            id: "dragon",
+            name: "มังกร",                  // สำหรับใช้จัดการภายในเท่านั้น (ห้ามแสดงใน UI ก่อนเปิดวิดีโอ)
+            command: "มังกรจงออกมา",           // คำสั่งเสียงที่ต้องการให้ระบบฟัง
+            video: "dragon.mp4"
+        }
+    ];
+
     // --- State Variables ---
-    let isSummoning = false;        // ป้องกันการเรียกคำสั่งซ้ำขณะกำลังอัญเชิญ
-    let isSystemActive = false;     // สถานะว่าผู้ใช้เปิดระบบเวทมนตร์แล้วหรือยัง
+    let isSummoning = false;        // ตัวแปรป้องกันการอัญเชิญซ้ำขณะกำลังทำงาน
+    let isSystemActive = false;     // สถานะระบบฟังเสียงเปิดอยู่หรือไม่
     let recognition = null;         // ตัวแปร SpeechRecognition
     let ttsVoice = null;            // เสียงพากย์ภาษาไทย
-    let isFullscreenMode = false;   // สถานะ Fullscreen
+    let currentTargetVideo = "dragon.mp4"; // ไฟล์วิดีโอเป้าหมาย
 
     // --- DOM Elements ---
     const mainContainer = document.getElementById('mainContainer');
     const magicCircleWrapper = document.getElementById('magicCircleWrapper');
-    const coreNode = document.getElementById('coreNode');
     const statusDot = document.getElementById('statusDot');
     const statusBadgeText = document.getElementById('statusBadgeText');
-    const statusText = document.getElementById('statusText');
+    const statusTitle = document.getElementById('statusTitle');
+    const statusEnglish = document.getElementById('statusEnglish');
     const transcriptText = document.getElementById('transcriptText');
     const startBtn = document.getElementById('startBtn');
     const fullscreenBtn = document.getElementById('fullscreenBtn');
-    const summonPortalOverlay = document.getElementById('summonPortalOverlay');
-    const portalTitle = document.getElementById('portalTitle');
+    const flashOverlay = document.getElementById('flashOverlay');
     const dragonVideo = document.getElementById('dragonVideo');
     const particleCanvas = document.getElementById('particleCanvas');
 
     // ==========================================================================
-    // 1. HELPER FUNCTIONS & NORMALIZATION
+    // 2. HELPER & NORMALIZATION
     // ==========================================================================
 
     /**
-     * ลบช่องว่าง และเปลี่ยนเป็นอักษรตัวพิมพ์เล็กเพื่อเปรียบเทียบคำสั่งเสียง
+     * ลบช่องว่างและอักขระพิเศษเพื่อเปรียบเทียบคำสั่งเสียง
      * @param {string} text
      * @returns {string}
      */
@@ -47,11 +61,8 @@ document.addEventListener('DOMContentLoaded', () => {
             .trim();
     }
 
-    // คำสั่งเป้าหมายในการอัญเชิญมังกร (หลังจาก normalize แล้ว)
-    const TARGET_COMMAND = normalizeSpeech("มังกรจงออกมา");
-
     // ==========================================================================
-    // 2. AUDIO SYNTHESIZER (Web Audio API Magic SFX)
+    // 3. AUDIO SYNTHESIZER & MP3 ENGINE
     // ==========================================================================
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     let audioCtx = null;
@@ -66,47 +77,118 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     * เล่นเสียงเอฟเฟกต์เวทมนตร์ (Magic Chime SFX)
+     * โหลดและเล่นไฟล์เสียงหรือสังเคราะห์เสียงผ่าน Web Audio API
+     * @param {string} soundName - ชื่อเสียง (magic-start, heartbeat, energy-rise, rumble, impact)
+     * @param {number} volume - ความดังเสียง (0.0 ถึง 1.0)
      */
-    function playMagicSound() {
-        try {
-            initAudioContext();
-            if (!audioCtx) return;
+    function playSoundEffect(soundName, volume = 0.25) {
+        initAudioContext();
+        if (!audioCtx) return;
 
-            const now = audioCtx.currentTime;
-            
-            // Bright chime notes (E5, G#5, B5, E6)
-            const freqs = [659.25, 830.61, 987.77, 1318.51];
-            freqs.forEach((freq, idx) => {
+        // ลองพยายามเปิดจากไฟล์ MP3 ก่อน
+        const audio = new Audio(`sounds/${soundName}.mp3`);
+        audio.volume = volume;
+        const playPromise = audio.play();
+
+        if (playPromise !== undefined) {
+            playPromise.catch(() => {
+                // หากไฟล์ไม่มีหรือเบราว์เซอร์บล็อก ให้เล่นด้วย Web Audio API Synthesizer แทน
+                synthesizeSoundEffect(soundName, volume);
+            });
+        }
+    }
+
+    /**
+     * สังเคราะห์เสียงเอฟเฟกต์บรรยากาศในตัว (Web Audio API Synthesizer)
+     */
+    function synthesizeSoundEffect(type, volume = 0.25) {
+        if (!audioCtx) return;
+        const now = audioCtx.currentTime;
+
+        try {
+            if (type === 'magic-start') {
+                // เสียงพลังงานเวทมนตร์เริ่มเปิดตัว (Ethereal Sine Chime)
+                [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now + i * 0.08);
+                    gain.gain.setValueAtTime(0.01, now + i * 0.08);
+                    gain.gain.exponentialRampToValueAtTime(volume * 0.5, now + i * 0.08 + 0.05);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.9);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now + i * 0.08);
+                    osc.stop(now + i * 0.08 + 1.0);
+                });
+            } else if (type === 'heartbeat') {
+                // เสียงจังหวะหัวใจเต้น (Double Sub-Bass Thump)
+                [0, 0.22].forEach(delay => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(80, now + delay);
+                    osc.frequency.exponentialRampToValueAtTime(35, now + delay + 0.12);
+                    gain.gain.setValueAtTime(volume * 0.9, now + delay);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.15);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now + delay);
+                    osc.stop(now + delay + 0.18);
+                });
+            } else if (type === 'energy-rise') {
+                // เสียงพลังงานเวทมนตร์พุ่งสูงขึ้น (Pitch Sweep)
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
-                
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(freq, now + idx * 0.08);
-                
-                gain.gain.setValueAtTime(0.01, now + idx * 0.08);
-                gain.gain.exponentialRampToValueAtTime(0.2, now + idx * 0.08 + 0.04);
-                gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.8);
-
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.exponentialRampToValueAtTime(600, now + 1.5);
+                gain.gain.setValueAtTime(0.01, now);
+                gain.gain.linearRampToValueAtTime(volume * 0.4, now + 1.0);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 1.6);
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
-
-                osc.start(now + idx * 0.08);
-                osc.stop(now + idx * 0.08 + 0.85);
-            });
+                osc.start(now);
+                osc.stop(now + 1.6);
+            } else if (type === 'rumble') {
+                // เสียงสั่นสะเทือน (Low Frequency Vibrating Sub-Bass)
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(45, now);
+                osc.frequency.linearRampToValueAtTime(65, now + 1.2);
+                gain.gain.setValueAtTime(volume * 0.6, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 1.5);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 1.5);
+            } else if (type === 'impact') {
+                // เสียงระเบิดตูมใหญ่ Climax (Impact Sub-Boom)
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(250, now);
+                osc.frequency.exponentialRampToValueAtTime(30, now + 0.4);
+                gain.gain.setValueAtTime(volume, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.85);
+            }
         } catch (e) {
-            console.warn("Audio Context sound effect failed:", e);
+            console.warn("Audio synthesis note failed:", e);
         }
     }
 
     // ==========================================================================
-    // 3. TEXT-TO-SPEECH (SpeechSynthesisUtterance)
+    // 4. SEQUENTIAL TEXT-TO-SPEECH (Suspense Narrator)
     // ==========================================================================
-    
+
     function loadTTSVoices() {
         if ('speechSynthesis' in window) {
             const voices = window.speechSynthesis.getVoices();
-            // ค้นหาเสียงภาษาไทย
             ttsVoice = voices.find(v => v.lang.includes('th') || v.lang.includes('TH')) || null;
         }
     }
@@ -117,61 +199,115 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     * ให้ AI พูดข้อความ "กำลังอัญเชิญ มังกร"
-     * @param {Function} onEndCallback - ทำงานเมื่อ AI พูดจบ
+     * พูดประโยคเดี่ยว และรอจนพูดจบ
+     * @param {string} text - ข้อความที่ต้องพูด
+     * @param {number} rate - ความเร็วเสียง
+     * @param {number} pitch - ระดับความสูงเสียง
+     * @returns {Promise<void>}
      */
-    function speakSummoningAnnouncement(onEndCallback) {
-        if (!('speechSynthesis' in window)) {
-            console.warn("SpeechSynthesis ไม่รองรับในเบราว์เซอร์นี้");
-            if (onEndCallback) onEndCallback();
-            return;
-        }
-
-        // ยกเลิกการพูดเดิมก่อนหน้า (ถ้ามี)
-        window.speechSynthesis.cancel();
-
-        const utterance = new SpeechSynthesisUtterance("กำลังอัญเชิญ มังกร");
-        utterance.lang = "th-TH";
-        utterance.rate = 0.85;
-        utterance.pitch = 0.9;
-        
-        if (ttsVoice) {
-            utterance.voice = ttsVoice;
-        }
-
-        let hasTriggered = false;
-
-        // เมื่อ AI พูดจบ
-        utterance.onend = () => {
-            if (!hasTriggered) {
-                hasTriggered = true;
-                if (onEndCallback) onEndCallback();
+    function speakLine(text, rate = 0.8, pitch = 0.85) {
+        return new Promise((resolve) => {
+            if (!('speechSynthesis' in window)) {
+                resolve();
+                return;
             }
-        };
 
-        // จัดการกรณีเกิดข้อผิดพลาด ให้ข้ามไปเล่นวิดีโอทันที
-        utterance.onerror = (err) => {
-            console.error("SpeechSynthesis error:", err);
-            if (!hasTriggered) {
-                hasTriggered = true;
-                if (onEndCallback) onEndCallback();
+            window.speechSynthesis.cancel();
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = "th-TH";
+            utterance.rate = rate;
+            utterance.pitch = pitch;
+
+            if (ttsVoice) {
+                utterance.voice = ttsVoice;
             }
-        };
 
-        // สั่งให้ AI พูดออกลำโพง
-        window.speechSynthesis.speak(utterance);
+            let resolved = false;
 
-        // Fallback เพื่อความชัวร์ หาก event onend ไม่ถูกเรียกภายใน 5 วินาที
-        setTimeout(() => {
-            if (!hasTriggered) {
-                hasTriggered = true;
-                if (onEndCallback) onEndCallback();
-            }
-        }, 5000);
+            utterance.onend = () => {
+                if (!resolved) {
+                    resolved = true;
+                    resolve();
+                }
+            };
+
+            utterance.onerror = (err) => {
+                console.warn("TTS line error:", err);
+                if (!resolved) {
+                    resolved = true;
+                    resolve();
+                }
+            };
+
+            window.speechSynthesis.speak(utterance);
+
+            // Safety fallback timeout
+            setTimeout(() => {
+                if (!resolved) {
+                    resolved = true;
+                    resolve();
+                }
+            }, 4500);
+        });
+    }
+
+    /**
+     * สุ่มเวลาหน่วงระหว่างประโยค (500ms - 900ms) เพื่อความลุ้นธรรมชาติ
+     */
+    function getRandomSuspenseDelay() {
+        return Math.floor(Math.random() * 400) + 500; // 500..900 ms
+    }
+
+    function delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
     }
 
     // ==========================================================================
-    // 4. SPEECH RECOGNITION (Web Speech API)
+    // 5. STAGE VISUAL CONTROLLER (setMagicStage 1..4)
+    // ==========================================================================
+
+    /**
+     * ปรับเปลี่ยนระดับความอลังการบนหน้าจอ (Stage 1 ถึง Stage 4)
+     * @param {number} stage - หมายเลขสเตจ (1, 2, 3, 4)
+     */
+    function setMagicStage(stage) {
+        // ล้างสเตจเดิมก่อนหน้า
+        document.body.classList.remove('stage-1', 'stage-2', 'stage-3', 'stage-4');
+        statusDot.className = 'status-dot suspense';
+
+        if (stage === 1) {
+            document.body.classList.add('stage-1');
+            statusTitle.textContent = "ตรวจพบพลังงานที่ไม่ทราบชนิด";
+            statusEnglish.textContent = "UNKNOWN MAGICAL ENERGY DETECTED";
+            playSoundEffect('magic-start', 0.25);
+        } 
+        else if (stage === 2) {
+            document.body.classList.add('stage-2');
+            statusTitle.textContent = "มีบางสิ่ง...กำลังตื่นขึ้น";
+            statusEnglish.textContent = "SOMETHING IS AWAKENING...";
+            playSoundEffect('heartbeat', 0.35);
+        } 
+        else if (stage === 3) {
+            document.body.classList.add('stage-3');
+            statusTitle.textContent = "ระดับพลังงานกำลังเพิ่มขึ้น";
+            statusEnglish.textContent = "ENERGY LEVEL RISING";
+            playSoundEffect('energy-rise', 0.3);
+            playSoundEffect('rumble', 0.25);
+        } 
+        else if (stage === 4) {
+            document.body.classList.add('stage-4');
+            statusTitle.textContent = "ประตูอัญเชิญกำลังเปิด!";
+            statusEnglish.textContent = "SUMMONING GATE OPENING!";
+            playSoundEffect('impact', 0.85); // เสียงตูม Climax ดัง 0.85
+
+            // เกิด Flash แสงสีขาววาบ
+            flashOverlay.classList.add('active');
+        }
+    }
+
+    // ==========================================================================
+    // 6. SPEECH RECOGNITION (Web Speech API)
     // ==========================================================================
 
     function initSpeechRecognition() {
@@ -179,7 +315,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!SpeechRecognition) {
             alert("เบราว์เซอร์ของคุณไม่รองรับ Web Speech API กรุณาใช้ Google Chrome หรือ Microsoft Edge");
-            updateStatusDisplay("ไม่รองรับการฟังเสียง", "เบราว์เซอร์ไม่รองรับ SpeechRecognition");
+            updateStatusDisplay("ไม่รองรับไมค์", "เบราว์เซอร์ไม่รองรับ SpeechRecognition");
             return false;
         }
 
@@ -189,7 +325,6 @@ document.addEventListener('DOMContentLoaded', () => {
         recognition.interimResults = true;
         recognition.maxAlternatives = 1;
 
-        // เมื่อเริ่มฟังเสียง
         recognition.onstart = () => {
             if (!isSummoning) {
                 updateStatusDisplay("กำลังฟังเสียง...", "กำลังรอคำอัญเชิญ...", "listening");
@@ -197,9 +332,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
 
-        // ได้ยินเสียงและแปลข้อความ
         recognition.onresult = (event) => {
-            if (isSummoning) return; // ห้ามรับคำสั่งใหม่ขณะอัญเชิญ
+            if (isSummoning) return; // ป้องกันคำสั่งซ้ำ
 
             let currentTranscript = "";
             for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -213,28 +347,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const normalizedText = normalizeSpeech(rawText);
 
-            // ตรวจจับคำสั่ง "มังกรจงออกมา" หรือ "มังกร จงออกมา"
-            if (normalizedText.includes(TARGET_COMMAND)) {
-                console.log("ตรวจพบคำอัญเชิญ:", rawText);
-                handleSummonCommand();
+            // ค้นหาว่าตรงกับคำสั่งอัญเชิญของสัตว์ตัวใดใน config หรือไม่
+            for (const item of summons) {
+                const targetCmd = normalizeSpeech(item.command);
+                if (normalizedText.includes(targetCmd)) {
+                    console.log("ตรวจพบคำสั่งอัญเชิญ:", rawText);
+                    currentTargetVideo = item.video;
+                    startSuspenseSummoningFlow();
+                    break;
+                }
             }
         };
 
-        // เมื่อเกิดข้อผิดพลาด
         recognition.onerror = (event) => {
             console.warn("Speech Recognition Error:", event.error);
             if (event.error === 'no-speech') return;
             
-            // หากเกิด error และไม่ได้กำลังอัญเชิญ ให้พยายามเริ่มใหม่
             if (isSystemActive && !isSummoning) {
                 restartRecognitionWithDelay(1000);
             }
         };
 
-        // เมื่อระบบฟังเสียงหยุดลงอัตโนมัติ
         recognition.onend = () => {
             magicCircleWrapper.classList.remove('listening');
-            // หากไม่ได้กำลังเล่นวิดีโออัญเชิญ ให้รีสตาร์ทฟังเสียงต่อ
             if (isSystemActive && !isSummoning) {
                 restartRecognitionWithDelay(300);
             }
@@ -248,105 +383,112 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isSystemActive && !isSummoning && recognition) {
                 try {
                     recognition.start();
-                } catch (e) {
-                    // หากยังทำงานอยู่แล้ว ให้ข้าม
-                }
+                } catch (e) {}
             }
         }, ms);
     }
 
-    /**
-     * หยุดฟังเสียงชั่วคราวเพื่อป้องกันไมโครโฟนได้ยินเสียง AI หรือเสียงวิดีโอ
-     */
     function stopSpeechRecognition() {
         if (recognition) {
             try {
                 recognition.stop();
                 recognition.abort();
-            } catch (e) {
-                console.log("Stop recognition:", e);
-            }
+            } catch (e) {}
         }
         magicCircleWrapper.classList.remove('listening');
     }
 
     // ==========================================================================
-    // 5. SUMMONING FLOW EXECUTION
+    // 7. SUSPENSE SUMMONING FLOW EXECUTION
     // ==========================================================================
 
     /**
-     * ประมวลผลคำสั่งอัญเชิญมังกร
+     * ลำดับการทำงานสร้างความลุ้นก่อนเฉลยสัตว์เวทมนตร์
      */
-    function handleSummonCommand() {
-        // ป้องกันการเปิดซ้ำ
+    async function startSuspenseSummoningFlow() {
         if (isSummoning) return;
         isSummoning = true;
 
-        // 1. หยุด Speech Recognition ทันที เพื่อไม่ให้ได้ยินเสียง AI ตัวเอง
+        // 1. หยุด Speech Recognition ทันที เพื่อไม่ให้ฟังเสียง AI
         stopSpeechRecognition();
 
-        // 2. เล่นเสียงเอฟเฟกต์เวทมนตร์
-        playMagicSound();
+        // 2. Stage 1: ตรวจพบพลังงานบางอย่าง...
+        setMagicStage(1);
+        await speakLine("ตรวจพบพลังงานบางอย่าง...", 0.8, 0.85);
 
-        // 3. ปรับเปลี่ยนสถานะหน้าจอ
-        updateStatusDisplay("ตรวจพบคำอัญเชิญ", "ตรวจพบคำอัญเชิญ", "summoning");
-        magicCircleWrapper.classList.add('summoning');
+        if (!isSummoning) return; // กรณีถูกยกเลิกด้วย ESC
+        await delay(getRandomSuspenseDelay());
 
-        // 4. แสดงเอฟเฟกต์ประตูเวทมนตร์
+        // 3. Stage 2: มีบางสิ่ง...กำลังตื่นขึ้น
+        setMagicStage(2);
+        await speakLine("มีบางสิ่ง...กำลังตื่นขึ้น", 0.8, 0.85);
+
+        if (!isSummoning) return;
+        await delay(getRandomSuspenseDelay());
+
+        // 4. Stage 3: พลังงานกำลังเพิ่มขึ้น...
+        setMagicStage(3);
+        await speakLine("พลังงานกำลังเพิ่มขึ้น...", 0.8, 0.85);
+
+        if (!isSummoning) return;
+        await delay(getRandomSuspenseDelay());
+
+        // 5. Stage 4: มัน...กำลังจะออกมา! (พูดตื่นเต้น เสียงเร็วขึ้น)
+        await speakLine("มัน...กำลังจะออกมา!", 0.95, 1.05);
+
+        if (!isSummoning) return;
+
+        // 6. เกิด Flash แสงวาบ + Impact Sound และเปิดวิดีโอทันที
+        setMagicStage(4);
+        
         setTimeout(() => {
-            updateStatusDisplay("กำลังอัญเชิญ", "กำลังเปิดประตูเวทมนตร์...", "summoning");
-            summonPortalOverlay.classList.add('active');
-            portalTitle.textContent = "กำลังเปิดประตูเวทมนตร์...";
-        }, 500);
-
-        // 5. AI พูดออกลำโพง “กำลังอัญเชิญ มังกร”
-        // เมื่อ AI พูดจบแล้ว จึงค่อยเปิด dragon.mp4
-        speakSummoningAnnouncement(() => {
-            playDragonVideo();
-        });
+            playCreatureVideo();
+        }, 300);
     }
 
     /**
-     * เปิดวิดีโอ dragon.mp4 แบบเต็มหน้าจอ
+     * เล่นวิดีโอสัตว์เวทมนตร์แบบเต็มหน้าจอ
      */
-    function playDragonVideo() {
-        // ซ่อน Portal Overlay
-        summonPortalOverlay.classList.remove('active');
-        magicCircleWrapper.classList.remove('summoning');
+    function playCreatureVideo() {
+        // ซ่อน Flash Overlay
+        flashOverlay.classList.remove('active');
 
-        // เข้าสู่โหมดเล่นวิดีโอ
+        // ตั้งค่าไฟล์วิดีโอ
+        const sourceElem = dragonVideo.querySelector('source');
+        if (sourceElem && currentTargetVideo) {
+            sourceElem.src = currentTargetVideo;
+            dragonVideo.load();
+        }
+
+        // เข้าสู่โหมดเล่นวิดีโอเต็มหน้าจอ
         document.body.classList.add('video-active');
         dragonVideo.classList.add('active');
-
-        // รีเซ็ตเวลาวิดีโอและเริ่มเล่น
         dragonVideo.currentTime = 0;
-        
+
         const playPromise = dragonVideo.play();
         if (playPromise !== undefined) {
             playPromise.then(() => {
-                console.log("วิดีโอมังกรเริ่มเล่นแล้ว");
+                console.log("วิดีโอสัตว์เวทมนตร์เริ่มเล่นแล้ว");
             }).catch(err => {
                 console.error("การเล่นวิดีโอล้มเหลว:", err);
-                // หากออโต้เพลย์โดนบล็อก ให้จบการอัญเชิญและกลับหน้าหลัก
                 finishVideoSummoning();
             });
         }
     }
 
     /**
-     * เมื่อวิดีโอเล่นจบแล้ว ให้กลับสู่หน้ารอรับคำสั่ง
+     * เมื่อวิดีโอเล่นจบ กลับสู่หน้ารอฟังคำสั่ง
      */
     function finishVideoSummoning() {
-        // หยุดและซ่อนวิดีโอ
         dragonVideo.pause();
         dragonVideo.classList.remove('active');
-        document.body.classList.remove('video-active');
+        document.body.classList.remove('video-active', 'stage-1', 'stage-2', 'stage-3', 'stage-4');
+        flashOverlay.classList.remove('active');
 
-        // คืนค่าตัวแปรป้องกันการเปิดซ้ำ
         isSummoning = false;
 
-        // อัปเดตสถานะหน้าจอ
         updateStatusDisplay("พร้อมรับคำสั่ง", "กำลังรอคำอัญเชิญ...", "listening");
+        statusEnglish.textContent = "READY FOR SUMMONING COMMAND";
         transcriptText.textContent = '"..."';
 
         // เปิด Speech Recognition ใหม่อัตโนมัติ
@@ -355,31 +497,29 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // เมื่อวิดีโอ dragon.mp4 เล่นจบ
     dragonVideo.onended = () => {
-        console.log(" dragon.mp4 เล่นจบแล้ว");
+        console.log("วิดีโอเล่นจบแล้ว");
         finishVideoSummoning();
     };
 
-    // ปุ่ม ESC สำหรับหยุดวิดีโอฉุกเฉิน
+    // ปุ่ม ESC สำหรับหยุดวิดีโอหรือยกเลิกการอัญเชิญฉุกเฉิน
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' || e.key === 'Esc') {
             if (isSummoning || dragonVideo.classList.contains('active')) {
-                console.log("กด ESC หยุดวิดีโอฉุกเฉิน");
+                console.log("กด ESC ยกเลิกอัญเชิญฉุกเฉิน");
                 window.speechSynthesis.cancel();
-                summonPortalOverlay.classList.remove('active');
                 finishVideoSummoning();
             }
         }
     });
 
     // ==========================================================================
-    // 6. UI UPDATE & BUTTON LISTENERS
+    // 8. UI CONTROLLER & BUTTONS
     // ==========================================================================
 
     function updateStatusDisplay(badge, text, stateClass = 'active') {
         statusBadgeText.textContent = badge;
-        statusText.textContent = text;
+        statusTitle.textContent = text;
 
         statusDot.className = 'status-dot';
         if (stateClass) {
@@ -387,7 +527,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // กดปุ่ม "เริ่มระบบเวทมนตร์"
     startBtn.addEventListener('click', () => {
         initAudioContext();
 
@@ -405,11 +544,10 @@ document.addEventListener('DOMContentLoaded', () => {
             startBtn.querySelector('.btn-text').textContent = "ระบบเวทมนตร์ทำงานอยู่";
             startBtn.style.opacity = "0.8";
         } catch (e) {
-            console.log("Recognition already started");
+            console.log("Recognition already active");
         }
     });
 
-    // กดปุ่ม "เข้าสู่โหมดงานแสดง" (Fullscreen)
     fullscreenBtn.addEventListener('click', () => {
         toggleFullscreen();
     });
@@ -417,25 +555,21 @@ document.addEventListener('DOMContentLoaded', () => {
     function toggleFullscreen() {
         if (!document.fullscreenElement) {
             document.documentElement.requestFullscreen().then(() => {
-                isFullscreenMode = true;
                 fullscreenBtn.querySelector('.btn-text').textContent = "ออกจากโหมดงานแสดง";
             }).catch(err => {
-                console.warn("ไม่สามารถเข้าสู่ Fullscreen:", err);
+                console.warn("Fullscreen failed:", err);
             });
         } else {
             if (document.exitFullscreen) {
                 document.exitFullscreen().then(() => {
-                    isFullscreenMode = false;
                     fullscreenBtn.querySelector('.btn-text').textContent = "เข้าสู่โหมดงานแสดง";
                 });
             }
         }
     }
 
-
-
     // ==========================================================================
-    // 7. BACKGROUND PARTICLE CANVAS ENGINE
+    // 9. BACKGROUND PARTICLE CANVAS ENGINE
     // ==========================================================================
     function initParticleCanvas() {
         const ctx = particleCanvas.getContext('2d');
