@@ -14,12 +14,59 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================================================
     // 1. EXTENSIBLE CONFIGURATION
     // ==========================================================================
+    /**
+     * ==========================================================================
+     * 1.1. CENTRAL SUMMON MAPPING (ระบบแมปสัตว์กลาง)
+     * --------------------------------------------------------------------------
+     * ระบบแมปทั้งหมดรวมไว้ที่นี่จุดเดียว เพื่อให้เพิ่มสัตว์ใหม่ในอนาคตได้ง่าย
+     * โดยไม่ต้องไปแก้โค้ดส่วนอื่น เช่น:
+     *
+     *     { id: "IceDragon", name: "IceDragon", video: "IceDragon.mp4", aliases: [...] }
+     *
+     * - id       : ตัวระบุภายในของสัตว์
+     * - name     : ชื่อ (ใช้แสดงกับ Mapping เท่านั้น ไม่มีการแสดงใบ D ด)
+     * - command  : คำสั่งเสียงดั้งเดิม (เพื่อรักษาความเข้ากันได้กับระบบเดิม)
+     * - video    : ไฟล์วิดีโอของสัตว์ตัวนั้น (ตรวจสอบจริงก่อนเสมอ)
+     * - aliases  : ชื่อเรียกอื่นที่ AI อาจส่งมา (รวมทั้งภาษาไทย/อังกฤษ)
+     *              ความสำคัญ: ชื่อที่เจาะจง/ยาวกว่าจะถูกเลือกมาก่อน เช่น
+     *              มังกรเกราะ = ArmoredDr.mp4 (ไม่ไปเป็น dragon.mp4)
+     * ==========================================================================
+     */
     const summons = [
         {
             id: "dragon",
-            name: "มังกร",                  // สำหรับใช้จัดการภายในเท่านั้น (ห้ามแสดงใน UI หรือพูดก่อนเปิดวิดีโอ)
-            command: "มังกรจงออกมา",           // คำสั่งเสียงสั่งงาน
-            video: "dragon.mp4"
+            name: "มังกร",                       // สำหรับใช้จัดการภายในเท่านั้น (ห้ามแสดงใน UI หรือพูดก่อนเปิดวิดีโอ)
+            command: "มังกรจงออกมา",             // คำสั่งเสียงเดิม
+            video: "mp4/dragon.mp4",
+            aliases: ["มังกร", "dragon", "DRAGON"]
+        },
+        {
+            id: "armored-dragon",
+            name: "มังกรเกราะ",
+            command: "เกราะมังกรจงออกมา",
+            video: "mp4/ArmoredDr.mp4",
+            aliases: ["มังกรเกราะ", "armored dragon", "armoreddragon", "armoreddr", "ArmoredDr", "มังกรหุ้มเกราะ"]
+        },
+        {
+            id: "yeti",
+            name: "เยติ",
+            command: "เยติจงออกมา",
+            video: "mp4/Yeti.mp4",
+            aliases: ["เยติ", "yeti", "YETI", "เยตี้"]
+        },
+        {
+            id: "phoenix",
+            name: "ฟีนิกซ์",
+            command: "ฟีนิกซ์จงออกมา",
+            video: "mp4/phoenix.mp4",
+            aliases: ["ฟีนิกซ์", "ฟีนิก", "phoenix", "Phoenix", "นกฟีนิกซ์", "ฟินิกซ์"]
+        },
+        {
+            id: "lion",
+            name: "สิงโต",
+            command: "สิงโตจงออกมา",
+            video: "mp4/lion.mp4",
+            aliases: ["สิงโต", "lion", "LION"]
         }
     ];
 
@@ -36,7 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let isSystemActive = false;     // สถานะระบบฟังเสียงเปิดอยู่หรือไม่
     let recognition = null;         // ตัวแปร SpeechRecognition
     let ttsVoice = null;            // เสียงพากย์ภาษาไทย
-    let currentTargetVideo = "dragon.mp4"; // ไฟล์วิดีโอเป้าหมาย
+    let currentTargetVideo = "mp4/dragon.mp4"; // ไฟล์วิดีโอเป้าหมาย (ค่าเริ่มต้น)
 
     // --- DOM Elements ---
     const mainContainer = document.getElementById('mainContainer');
@@ -72,6 +119,324 @@ document.addEventListener('DOMContentLoaded', () => {
             .toLowerCase()
             .replace(/\s+/g, "")
             .trim();
+    }
+
+    // ==========================================================================
+    // 2.1. CENTRAL MAPPING RESOLUTION (จับคู่คำสั่ง → สัตว์ → วิดีโอ)
+    // --------------------------------------------------------------------------
+    // normalizeSpeech จะตัดช่องว่าง/ตัวพิมพ์ใหญ่เล็กหมดแล้ว จึงรองรับทั้ง
+    // "มังกร" , "dragon", "DRAGON", "Armored Dragon" เป็นต้น
+    // ตัดสินโดยเลือก alias ที่ "ยาวที่สุดที่ตรง" เพื่อแยก มังกรเกราะ ออกจาก มังกร
+    // ==========================================================================
+
+    const summonAliasCache = new Map();
+
+    /**
+     * รวบรวม alias ที่ normalize แล้วของสัตว์ตัวหนึ่ง (รวม name/command/ชื่อไฟล์)
+     * @returns {Set<string>}
+     */
+    function getNormalizedAliases(item) {
+        if (!item || !item.id) return new Set();
+        if (summonAliasCache.has(item.id)) return summonAliasCache.get(item.id);
+
+        const set = new Set();
+        if (item.name) set.add(normalizeSpeech(item.name));
+        if (item.command) set.add(normalizeSpeech(item.command));
+        // ชื่อไฟล์วิดีโอ (ตัดเส้นทางและ .mp4 ออก) เช่น "dragon" ใช้เป็น alias ได้ด้วย
+        if (item.video) {
+            const base = String(item.video).split('/').pop().replace(/\.mp4$/i, "");
+            set.add(normalizeSpeech(base));
+        }
+        (Array.isArray(item.aliases) ? item.aliases : []).forEach(a => set.add(normalizeSpeech(a)));
+
+        summonAliasCache.set(item.id, set);
+        return set;
+    }
+
+    /**
+     * ค้นหาสัตว์ที่ตรงกับข้อความที่ AI รับมา โดยเลือก alias ที่ยาวที่สุด
+     * ช่วยให้แยก "มังกรเกราะ" ออกจาก "มังกร" ได้ถูกต้อง
+     * @param {string} rawText ข้อความดิบจากเสียง/คำสั่ง
+     * @returns {object|null} สัตว์ที่ตรง หรือ null หากไม่พบ (ไม่ crash)
+     */
+    function resolveSummons(rawText) {
+        const normalized = normalizeSpeech(rawText);
+        if (!normalized) return null;
+
+        let best = null;
+        let bestLength = -1;
+        for (const s of summons) {
+            for (const alias of getNormalizedAliases(s)) {
+                if (alias && alias.length > bestLength && normalized.includes(alias)) {
+                    best = s;
+                    bestLength = alias.length;
+                }
+            }
+        }
+        return best;
+    }
+
+    /**
+     * ตรวจสอบอย่างปลอดภัยว่าไฟล์วิดีโอ .mp4 มีอยู่จริงหรือไม่
+     * - เมื่อเปิดผ่าน protocol file:// (ดับเบิลคลิก index.html) fetch จะถูก CORS
+     *   บล็อกเสมอ เราจึงไม่บล็อกเส้นทางนี้ (ให้ video element ตรวจสอบเองผ่านบน error)
+     * @param {string} path
+     * @returns {Promise<boolean>}
+     */
+    function videoFileExists(path) {
+        return new Promise((resolve) => {
+            if (!path) { resolve(false); return; }
+            // HEAD บน http/https: ตรวจว่ามีจริง (case-sensitive)
+            fetch(path, { method: 'HEAD' })
+                .then(res => resolve(res.ok))
+                .catch(() => resolve(true)); // file:// หรือ CORS: ยืนยันไม่ได้ → ให้ video element ตรวจสอบเอง
+        });
+    }
+
+    // ==========================================================================
+    // 2.2. VOICE AI — UNDERSTANDING LAYER (ความเข้าใจเจตนา + คำเพี้ยน)
+    // --------------------------------------------------------------------------
+    // เพิ่มเป็น "Input Layer" เท่านั้น ไม่แตะระบบ Effect/Sound/Animation/Timing
+    // เดิม ช่วยให้ AI เข้าใจเจตนาของเด็กๆ แม้พูดไม่ชัด ออกเสียงเพี้ยน หรือ
+    // พิมพ์เผลอเล็กน้อย แล้วส่งผลเป็น "ชนิดสัตว์" เข้าสู่ระบบ Mapping เดิม
+    // เพื่อเรียกโชว์เดิมตามปกติ
+    // ==========================================================================
+
+    // ค่าความมั่นใจขั้นต่ำ จะยอมรับว่าช่วงคำมีเจตนเรียกสัตว์ (0..1)
+    const FUZZY_MIN_SIMILARITY = 0.46;
+
+    // ค่าปรับเมื่อ alias ยาว/สั้นกว่าเจตนาที่พูดมากเกินไป (ให้เลือกชนิดที่มีความยาว
+    // ใกล้เคียงกัน เช่น พูด "มังกร" สั้น → ไม่เผลอไป "มังกรเกราะ" ที่ยาวกว่า)
+    const FUZZY_LENGTH_PENALTY = 0.12;
+
+    // คำสั่ง/คำประกอบการเรียกที่ถอดออกก่อนวิเคราะห์ "ชื่อสัตว์ที่ตั้งใจ"
+    const COMMAND_NOISE = [
+        "จงออกมา", "ออกมา", "เรียก", "ออก", "ขึ้นมา", "ตามมา", "จง", "มา",
+        "จงเรียก", "เอามา", "เอาออก", "ขอดู", "โชว์", "ตัว", "เลย",
+        "หน่อย", "จ้ะ", "ซิ", "ฮ่ะ", "ให้", "ด้วย", "นึง", "กับ", "ของ"
+    ];
+
+    /**
+     * ระยะห่างการแก้ไขระหว่างสองสตริง (Levenshtein) — ใช้กับไทยและอังกฤษได้
+     */
+    function levenshteinDistance(a, b) {
+        a = String(a); b = String(b);
+        const al = a.length, bl = b.length;
+        if (al === 0) return bl;
+        if (bl === 0) return al;
+        const prev = new Array(bl + 1);
+        const curr = new Array(bl + 1);
+        for (let j = 0; j <= bl; j++) prev[j] = j;
+        for (let i = 1; i <= al; i++) {
+            curr[0] = i;
+            for (let j = 1; j <= bl; j++) {
+                const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+                curr[j] = Math.min(prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + cost);
+            }
+            for (let j = 0; j <= bl; j++) prev[j] = curr[j];
+        }
+        return prev[bl];
+    }
+
+    /**
+     * ค่าความคล้าย 0..1 (1 = เหมือนมากที่สุด)
+     */
+    function stringSimilarity(a, b) {
+        const maxLen = Math.max(String(a).length, String(b).length);
+        if (maxLen === 0) return 1;
+        return 1 - levenshteinDistance(a, b) / maxLen;
+    }
+
+    /**
+     * ถอดเฉพาะ "ชื่อสัตว์ที่ตั้งใจจะเรียก" ออกจากประโยคคำสั่ง
+     */
+    function extractTargetName(text) {
+        if (!text) return "";
+        let t = normalizeSpeech(text);
+        const noises = COMMAND_NOISE.slice().sort((x, y) => y.length - x.length);
+        for (const n of noises) t = t.split(n).join("");
+        t = t.replace(/[่้๊๋์ๆเแไโ]/g, "").trim();
+        return t;
+    }
+
+    /**
+     * ทอนเป็น "โครงสร้างพยัญชนะ" (ทิ้งสระ+วรรณยุกต์) เพื่อลดผลต่างที่เกิดจาก
+     * การออกเสียงเพี้ยนสระ เช่น "มะกรอก" กับ "มังกร" มีโครงพยัญชนะใกล้กัน
+     */
+    function thaiSkeleton(text) {
+        return String(text || "")
+            .replace(/[ะัิีึืุูแโไใๆำ]/g, "")
+            .replace(/[่้๊๋์็]/g, "")
+            .replace(/[อา]/g, "");
+    }
+
+    /**
+     * ค่าความคล้ายที่ผสาน 2 มิติ: ตัวอักษรเต็ม + โครงสร้างพยัญชนะ
+     * ใช้ค่าที่ดีกว่า (สูงกว่า) เพื่อจับคำเพี้ยนทั้งสองแบบ
+     */
+    function combinedSimilarity(target, alias) {
+        const raw = stringSimilarity(target, alias);
+        const sk = stringSimilarity(thaiSkeleton(target), thaiSkeleton(alias));
+        return Math.max(raw, sk);
+    }
+
+    /**
+     * ความยาวของ alias ที่ยาวที่สุดซึ่งเป็นส่วนย่อย (substring) ของข้อความ
+     * ใช้ระบบเดิม (resolveSummons) เพื่อเปรียบเทียบความเฉพาะ
+     */
+    function longestSubstringAliasLength(rawText) {
+        const normalized = normalizeSpeech(rawText);
+        let bestLen = 0;
+        for (const s of summons) {
+            for (const alias of getNormalizedAliases(s)) {
+                if (alias && alias.length > bestLen && normalized.includes(alias)) bestLen = alias.length;
+            }
+        }
+        return bestLen;
+    }
+
+    /**
+     * วิเคราะห์ "เจตนา/ความหมาย" ของคำพูดที่อาจเพี้ยน
+     * - ตรวจตรงกับระบบเดิม (exact) ก่อน เพื่อคงพฤติกรรมเดิม
+     * - แล้วประเมินคำเพี้ยนด้วย Fuzzy Matching (อักษร + โครงสร้างพยัญชนะ)
+     * - ให้ความสำคัญกับ alias ที่ "ยาว/เจาะจงกว่า" เมื่อเป็นชื่อหลาย-คำ เช่น
+     *   "มังกรเกราะ" (ยาวกว่า) ชนะ "มังกร" → จึงเลือก ArmoredDr แทน dragon
+     */
+    function analyzeSummonIntent(raw) {
+        if (!raw) return null;
+
+        // 1) ตรงกับระบบเดิมก่อน (เร็วสุด + คงพฤติกรรมเดิม)
+        const direct = resolveSummons(raw);
+        const directLen = longestSubstringAliasLength(raw);
+
+        // 2) ถอดชื่อ แล้วทำ Fuzzy Matching กับ alias ทั้งหมด
+        const target = extractTargetName(raw);
+        let fuzzyBest = null;
+        if (target && target.length >= 2) {
+            let bestScored = -1, bestRaw = -1, bestLenFound = -1, bestSummon = null;
+            for (const s of summons) {
+                for (const alias of getNormalizedAliases(s)) {
+                    const sim = combinedSimilarity(target, alias);
+                    if (sim < FUZZY_MIN_SIMILARITY) continue;
+                    // หักคะแนนเมื่อ alias ยาว/สั้นเกินไป เทียบกับคำพูดที่ตั้งใจ
+                    const scored = sim - FUZZY_LENGTH_PENALTY * Math.abs(alias.length - target.length);
+                    if (scored > bestScored || (Math.abs(scored - bestScored) < 1e-9 && alias.length > bestLenFound)) {
+                        bestScored = scored;
+                        bestRaw = sim;
+                        bestSummon = s;
+                        bestLenFound = alias.length;
+                    }
+                }
+            }
+            if (bestSummon) fuzzyBest = { summon: bestSummon, score: bestRaw, aliasLen: bestLenFound };
+        }
+
+        // 3) เลือกผลที่ดีที่สุด: ชอบคำเพี้ยนที่เจาะไป alias ยาวกว่า (compound)
+        if (direct && !fuzzyBest) return { summon: direct, score: 1, method: "direct", fromTranscript: raw };
+        if (!direct && fuzzyBest) return { summon: fuzzyBest.summon, score: fuzzyBest.score, method: "fuzzy", fromTranscript: raw };
+        if (direct && fuzzyBest) {
+            // ชอบ fuzzy เมื่อเจาะได้ alias ที่ยาว/เฉพาะกว่า เช่น มังกรเกาะ ＞ มังกร
+            if (fuzzyBest.aliasLen > directLen) {
+                return { summon: fuzzyBest.summon, score: fuzzyBest.score, method: "fuzzy", fromTranscript: raw };
+            }
+            // หายาก: เจาะชนิดอื่นด้วยความมั่นใจสูงกว่ามาก
+            if (fuzzyBest.summon.id !== direct.id && fuzzyBest.score >= 0.6) {
+                return { summon: fuzzyBest.summon, score: fuzzyBest.score, method: "fuzzy", fromTranscript: raw };
+            }
+            return { summon: direct, score: 1, method: "direct", fromTranscript: raw };
+        }
+        return null;
+    }
+
+    /**
+     * เลือกผลดีที่สุดจากทางเลือก (alternatives) ของคำพูดทั้งหมด
+     */
+    function findBestSummonIntent(transcripts) {
+        if (!Array.isArray(transcripts)) transcripts = [transcripts];
+        let bestResult = null;
+        for (const t of transcripts) {
+            if (!t) continue;
+            const res = analyzeSummonIntent(t);
+            if (res && (!bestResult || res.score > bestResult.score)) bestResult = res;
+        }
+        return bestResult;
+    }
+
+    // ==========================================================================
+    // 2.3. VOICE AI — MICROPHONE DEVICE SUPPORT (เลือกไมโครโฟนอัตโนมัติ)
+    // --------------------------------------------------------------------------
+    // ค้นหาไมโครโฟนที่ใช้งานได้ ให้ความสำคัญกับ USB/Bluetooth/Headset/Mic ภายนอก
+    // ถ้าไม่มีค่อย fallback ไป Built-in Microphone (โน้ตบุ๊ค) ไม่ crash หากยังไม่
+    // อนุญาตสิทธิ์
+    // ==========================================================================
+    let micProbeStream = null;
+
+    /**
+     * เลือกไมโครโฟนที่ต้องการจากรายการอุปกรณ์
+     * ชอบอุปกรณ์ภายนอกที่อ่าน label ได้ > default (built-in)
+     */
+    function pickMicrophone(devices) {
+        const mics = (devices || []).filter(d => d.kind === "audioinput");
+        if (mics.length === 0) return null;
+        const labeled = mics.filter(m => m.label && m.label.length > 1);
+        const external = labeled.filter(m =>
+            /(usb|bluetooth|headset|ear|mic|microphone|wireless)/i.test(m.label) &&
+            !/(built.?in|internal|module|integrated|default)/i.test(m.label)
+        );
+        if (external.length > 0) return external[0];
+        if (labeled.length > 0) return labeled[0];
+        return mics.find(m => m.deviceId === "default") || mics[0];
+    }
+
+    /**
+     * ขอสิทธิ์ใช้ไมโครโฟน + เปิดใช้งานอุปกรณ์เสียงที่ดีที่สุดโดยไม่ crash
+     * - ถ้าไม่มี getUserMedia (เบราว์เซอร์เก่า) จะปล่อยให้ SpeechRecognition จัดการเอง
+     * - ถ้าผู้ใช้ยังไม่อนุญาต จะไม่ crash และไม่บล็อกระบบเดิม
+     * @returns {Promise<boolean>} เท่ากับว่าเตรียมไมค์เรียบร้อยหรือไม่
+     */
+    function ensureMicrophoneReady() {
+        return new Promise((resolve) => {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                resolve(true);
+                return;
+            }
+            // ปล่อย stream เก่า (ถ้ามี) เพื่อไม่ผูกไมค์ค้าง
+            if (micProbeStream && micProbeStream.getTracks) {
+                try { micProbeStream.getTracks().forEach(t => t.stop()); } catch (e) {}
+                micProbeStream = null;
+            }
+
+            Promise.resolve()
+                .then(() => navigator.mediaDevices.enumerateDevices())
+                .then((devices) => {
+                    const preferred = pickMicrophone(devices);
+                    const base = {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    };
+                    const audioConstraints = preferred && preferred.deviceId && preferred.deviceId !== "default"
+                        ? Object.assign({}, base, { deviceId: { exact: preferred.deviceId } })
+                        : base;
+                    return navigator.mediaDevices.getUserMedia({ audio: audioConstraints })
+                        .then((stream) => {
+                            micProbeStream = stream;
+                            // ปล่อย probe สั้นๆ แล้วคืนไมค์ให้ SpeechRecognition ใช้ต่อเอง
+                            const tracks = stream.getTracks();
+                            setTimeout(() => {
+                                try { tracks.forEach(t => t.stop()); } catch (e) {}
+                                if (micProbeStream === stream) micProbeStream = null;
+                            }, 400);
+                            resolve(true);
+                        })
+                        .catch((err) => {
+                            // ไม่อนุญาต/ไม่มีอุปกรณ์ → ไม่ crash ไม่บล็อก
+                            console.warn("ไมโครโฟนไม่พร้อมหรือไม่อนุญาต:", (err && (err.name || err.message)) || err);
+                            resolve(false);
+                        });
+                })
+                .catch(() => resolve(false));
+        });
     }
 
     function delay(ms) {
@@ -550,7 +915,7 @@ document.addEventListener('DOMContentLoaded', () => {
         recognition.lang = "th-TH";
         recognition.continuous = true;
         recognition.interimResults = true;
-        recognition.maxAlternatives = 1;
+        recognition.maxAlternatives = 3; // ขอหลายทางเลือก เพื่อใช้กับเจตนาเมื่อพูดเพี้ยน
 
         recognition.onstart = () => {
             if (!isSummoning) {
@@ -562,26 +927,37 @@ document.addEventListener('DOMContentLoaded', () => {
         recognition.onresult = (event) => {
             if (isSummoning) return;
 
-            let currentTranscript = "";
+            // เก็บทุกทางเลือกคำ (alternatives) ของทุก result ก้อน
+            const transcripts = [];
             for (let i = event.resultIndex; i < event.results.length; i++) {
-                currentTranscript += event.results[i][0].transcript;
+                const result = event.results[i];
+                for (let j = 0; j < result.length; j++) {
+                    const t = (result[j] && result[j].transcript || "").trim();
+                    if (t) transcripts.push(t);
+                }
             }
 
-            const rawText = currentTranscript.trim();
+            const rawText = (transcripts[0] || "").trim();
             if (rawText) {
                 transcriptText.textContent = `"${rawText}"`;
             }
 
-            const normalizedText = normalizeSpeech(rawText);
+            // 2) VOICE AI: วิเคราะห์เจตนาจากทุกทางเลือก (ตรงกับระบบเดิม → แล้วค่อย Fuzzy)
+            const analyzed = findBestSummonIntent(transcripts);
+            if (analyzed) {
+                console.log("[Voice AI] ตรวจพบเจตนาเรียกสัตว์:", JSON.stringify(analyzed.fromTranscript), "→", analyzed.summon.name,
+                    "(", analyzed.summon.video, ")", analyzed.method, "score:", analyzed.score.toFixed(3));
 
-            for (const item of summons) {
-                const targetCmd = normalizeSpeech(item.command);
-                if (normalizedText.includes(targetCmd)) {
-                    console.log("ตรวจพบคำสั่งอัญเชิญ:", rawText);
-                    currentTargetVideo = item.video;
-                    runCinematicSummoningShow();
-                    break;
-                }
+                // === DEBUG VIDEO CHAIN ===
+                console.log("[Animal] Detected:", analyzed.summon.name);
+                console.log("[Animal] Normalized:", analyzed.summon.id);
+                console.log("[Video] Mapping:", analyzed.summon.video);
+
+                currentTargetVideo = analyzed.summon.video;
+                runCinematicSummoningShow();
+            } else if (rawText) {
+                // ไม่มีเจตนาเรียกสัตว์ที่สอดคล้อง → ไม่ crash ระบบเดิมทำงานต่อไป
+                console.warn("[Voice AI] ไม่พบเจตนาเรียกสัตว์ในข้อความ:", rawText);
             }
         };
 
@@ -762,32 +1138,67 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /**
      * เปิดวิดีโอสัตว์เวทมนตร์แบบเต็มหน้าจอพร้อม Fade ดนตรีออก 300-500ms
+     * - แก้ไขปัญหา: ตรวจไฟล์แบบไม่บล็อก (รองรับ file://), ตั้ง video.src ตรงๆ แล้ว load()
+     * - รองรับ autoplay policy บนมือถือ: ถ้าเบราว์เซอร์ block การเล่นมีเสียง
+     *   จะลองเล่นแบบ muted อีกครั้งเพื่อให้วิดีโอแสดงผล
+     * - ไม่แตะระบบ Effect/Sound/Animation/Timing เดิมของโชว์
      */
-    function playCreatureVideo() {
+    async function playCreatureVideo() {
         flashOverlay.classList.remove('active');
 
         // Fade ดนตรีอัญเชิญออก 400ms ไม่ให้เพลงชนกับเสียงวิดีโอ
         stopAllOrchestralMusic(400);
 
-        const sourceElem = dragonVideo.querySelector('source');
-        if (sourceElem && currentTargetVideo) {
-            sourceElem.src = currentTargetVideo;
-            dragonVideo.load();
+        if (!currentTargetVideo) {
+            console.error("[Video ERROR] ไม่มีไฟล์วิดีโอเป้าหมาย (currentTargetVideo ว่าง)");
+            finishVideoSummoning();
+            return;
         }
+
+        // ตรวจสอบว่าไฟล์มีอยู่จริงก่อน (ไม่บล็อกบน file://) — case-sensitive
+        if (!(await videoFileExists(currentTargetVideo))) {
+            console.error("[Video ERROR] File not found:", currentTargetVideo);
+            finishVideoSummoning();
+            return;
+        }
+
+        console.log("[Video] Path:", currentTargetVideo);
+
+        // ตั้ง src ทั้งบน <source> และ video.src ตรงๆ (src attribute ชนะเสมอ
+        // และรองรับทั้ง desktop/mobile ได้แน่นอนกว่า)
+        const sourceElem = dragonVideo.querySelector('source');
+        if (sourceElem) sourceElem.src = currentTargetVideo;
+        dragonVideo.src = currentTargetVideo;
 
         document.body.classList.add('video-active');
         dragonVideo.classList.add('active');
-        dragonVideo.currentTime = 0;
 
-        const playPromise = dragonVideo.play();
-        if (playPromise !== undefined) {
-            playPromise.then(() => {
-                console.log("วิดีโออัญเชิญมังกรเริ่มเล่นแล้ว");
-            }).catch(err => {
-                console.error("การเล่นวิดีโอล้มเหลว:", err);
-                finishVideoSummoning();
-            });
-        }
+        console.log("[Video] Loading...", currentTargetVideo);
+        dragonVideo.load();
+
+        // เล่น: ลองแบบปกติก่อน ถ้า autoplay ถูก block บนมือถือ → retry muted
+        const attemptPlay = (muted) => {
+            dragonVideo.muted = muted;
+            dragonVideo.currentTime = 0;
+            const p = dragonVideo.play();
+            if (p !== undefined) {
+                p.then(() => {
+                    console.log(muted ? "[Video] Playing (muted fallback)" : "[Video] Playing...", currentTargetVideo);
+                }).catch(err => {
+                    const reason = (err && (err.name || err.message)) || err;
+                    console.error("[Video ERROR] Cannot play:", currentTargetVideo, reason);
+                    if (!muted && (reason === 'NotAllowedError' || (err && err.name === 'NotAllowedError'))) {
+                        // เบราว์เซอร์ block autoplay (มือถือ) → ลองแบบ muted
+                        console.log("[Video] Autoplay blocked, retrying muted...");
+                        attemptPlay(true);
+                    } else {
+                        finishVideoSummoning();
+                    }
+                });
+            }
+        };
+
+        attemptPlay(false);
     }
 
     /**
@@ -795,6 +1206,7 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function finishVideoSummoning() {
         dragonVideo.pause();
+        dragonVideo.muted = false; // รีเซ็ตกลับเพื่อรอบต่อไปเล่นแบบมีเสียงได้
         dragonVideo.classList.remove('active');
         document.body.className = '';
         
@@ -827,6 +1239,25 @@ document.addEventListener('DOMContentLoaded', () => {
         finishVideoSummoning();
     };
 
+    // ===== Video Loader ตรวจสอบ Media load/error (debug + fallback ปลอดภัย) =====
+    // เมื่อโหลดวิดีโอได้แล้ว จะถูกเรียกจาก attemptPlay อยู่แล้ว แต่ให้ log เพื่อดู
+    dragonVideo.addEventListener('canplay', () => {
+        console.log("[Video] Ready (canplay):", currentTargetVideo);
+    });
+
+    // ตรวจว่าไฟล์วิดีโอจริงๆ โหลดไม่ได้ (เช่น path ผิด / ไฟล์หาย) โดยไม่ crash
+    dragonVideo.addEventListener('error', () => {
+        const srcForLog = currentTargetVideo || dragonVideo.currentSrc || "(unknown)";
+        const code = dragonVideo.error ? ("code=" + dragonVideo.error.code) : "";
+        console.error("[Video ERROR] Cannot load:", srcForLog, code);
+        // Guard: ไม่ให้ finishVideoSummoning ซ้ำเมื่อ error ซ้ำกัน
+        if (dragonVideo.classList.contains('active') && !dragonVideo.classList.contains('video-error-handled')) {
+            dragonVideo.classList.add('video-error-handled');
+            finishVideoSummoning();
+            dragonVideo.classList.remove('video-error-handled');
+        }
+    });
+
     // ปุ่ม ESC หยุดวิดีโอหรือยกเลิกฉุกเฉิน
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' || e.key === 'Esc') {
@@ -856,22 +1287,26 @@ document.addEventListener('DOMContentLoaded', () => {
     startBtn.addEventListener('click', () => {
         initAudioContext();
 
-        if (!recognition) {
-            const success = initSpeechRecognition();
-            if (!success) return;
-        }
+        // VOICE AI: ขอสิทธิ์ใช้ไมโครโฟน + เลือกอุปกรณ์อัตโนมัติ (ไม่ crash ไม่แน่นอน)
+        // ถ้าอนุญาตแล้ว/ปฏิเสธ ก็ยังเข้าไป setup ต่อไปเพื่อให้ระบบเดิมทำงานเหมือนเดิม
+        ensureMicrophoneReady().then(() => {
+            if (!recognition) {
+                const success = initSpeechRecognition();
+                if (!success) return;
+            }
 
-        isSystemActive = true;
-        isSummoning = false;
+            isSystemActive = true;
+            isSummoning = false;
 
-        try {
-            recognition.start();
-            updateStatusDisplay("เปิดใช้งานไมค์", "ระบบประตูเวทมนตร์พร้อมใช้งาน", "listening");
-            startBtn.querySelector('.btn-text').textContent = "ระบบเวทมนตร์ทำงานอยู่";
-            startBtn.style.opacity = "0.8";
-        } catch (e) {
-            console.log("Recognition active");
-        }
+            try {
+                recognition.start();
+                updateStatusDisplay("เปิดใช้งานไมค์", "ระบบประตูเวทมนตร์พร้อมใช้งาน", "listening");
+                startBtn.querySelector('.btn-text').textContent = "ระบบเวทมนตร์ทำงานอยู่";
+                startBtn.style.opacity = "0.8";
+            } catch (e) {
+                console.log("Recognition active");
+            }
+        });
     });
 
     fullscreenBtn.addEventListener('click', () => {
